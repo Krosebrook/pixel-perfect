@@ -65,7 +65,6 @@ export interface QualityScores {
 
 export interface GeneratedPrompt {
   id?: string;
-  name: string;
   spec: PromptSpecObject;
   generated_prompt: string;
   abstract_template?: AbstractPromptTemplate;
