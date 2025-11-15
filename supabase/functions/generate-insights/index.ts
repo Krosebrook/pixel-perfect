@@ -1,9 +1,14 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.1';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -79,7 +84,8 @@ For each category, provide 1-2 specific, actionable recommendations based on the
     });
 
     if (!response.ok) {
-      throw new Error(`AI gateway error: ${response.status}`);
+      console.error('AI gateway error:', response.status);
+      throw new Error('Failed to generate insights');
     }
 
     const data = await response.json();
@@ -106,11 +112,16 @@ For each category, provide 1-2 specific, actionable recommendations based on the
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in generate-insights:', error);
+    const errorMessage = error instanceof z.ZodError 
+      ? 'Invalid input parameters'
+      : error.message === 'Unauthorized' 
+      ? 'Unauthorized' 
+      : 'Failed to generate insights';
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: errorMessage }),
+      { status: error.message === 'Unauthorized' ? 401 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
