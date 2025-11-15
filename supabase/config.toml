@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.run-comparison]
 verify_jwt = false
+
+[functions.run-comparison-stream]
+verify_jwt = false
