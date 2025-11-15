@@ -13,6 +13,10 @@ import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import ModelComparison from "./pages/ModelComparison";
 import SharedTestRun from "./pages/SharedTestRun";
+import Templates from "./pages/Templates";
+import Leaderboard from "./pages/Leaderboard";
+import ScheduledTests from "./pages/ScheduledTests";
+import Teams from "./pages/Teams";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +36,10 @@ const App = () => (
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
             <Route path="/models/compare" element={<ProtectedRoute><ModelComparison /></ProtectedRoute>} />
+            <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
+            <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
+            <Route path="/scheduled-tests" element={<ProtectedRoute><ScheduledTests /></ProtectedRoute>} />
+            <Route path="/teams" element={<ProtectedRoute><Teams /></ProtectedRoute>} />
             <Route path="/share/:token" element={<SharedTestRun />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

@@ -27,3 +27,12 @@ verify_jwt = false
 
 [functions.validate-quality]
 verify_jwt = false
+
+[functions.apply-template]
+verify_jwt = false
+
+[functions.execute-scheduled-test]
+verify_jwt = false
+
+[functions.manage-team]
+verify_jwt = false
