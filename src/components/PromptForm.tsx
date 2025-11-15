@@ -12,7 +12,6 @@ import { Loader2, Sparkles } from "lucide-react";
 import type { PromptSpecObject } from "@/types/prompt";
 
 const formSchema = z.object({
-  name: z.string().min(3, "Name must be at least 3 characters"),
   goal_type: z.enum(["writing", "coding", "agent", "analysis", "image", "data", "creative", "research"]),
   problem: z.string().min(10, "Problem definition must be at least 10 characters"),
   precision: z.enum(["B1", "B2", "A1", "A2", "S_TIER", "AGENT"]),
@@ -28,7 +27,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 interface PromptFormProps {
-  onGenerate: (spec: PromptSpecObject & { name: string }) => Promise<void>;
+  onGenerate: (spec: PromptSpecObject) => Promise<void>;
   isGenerating: boolean;
 }
 
@@ -45,8 +44,7 @@ export function PromptForm({ onGenerate, isGenerating }: PromptFormProps) {
   });
 
   const onSubmit = async (data: FormData) => {
-    const spec: PromptSpecObject & { name: string } = {
-      name: data.name,
+    const spec: PromptSpecObject = {
       goal_type: data.goal_type,
       problem: data.problem,
       precision: data.precision,
@@ -75,20 +73,6 @@ export function PromptForm({ onGenerate, isGenerating }: PromptFormProps) {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Prompt Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Advanced Code Review Assistant" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <div className="grid gap-4 md:grid-cols-2">
               <FormField
                 control={form.control}

@@ -21,7 +21,8 @@ export function PromptOutput({ prompt }: PromptOutputProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${prompt.name.replace(/\s+/g, "_")}.txt`;
+    const filename = `prompt_${prompt.spec.goal_type}_${prompt.spec.precision}.txt`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -46,7 +47,7 @@ export function PromptOutput({ prompt }: PromptOutputProps) {
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <CardTitle>{prompt.name}</CardTitle>
+            <CardTitle className="line-clamp-2">{prompt.spec.problem}</CardTitle>
             <CardDescription>
               Generated for {prompt.spec.model_target.toUpperCase()} • {prompt.spec.precision} Level
             </CardDescription>

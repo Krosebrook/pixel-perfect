@@ -2,20 +2,21 @@ import { useState } from "react";
 import { PromptForm } from "@/components/PromptForm";
 import { PromptOutput } from "@/components/PromptOutput";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { UserMenu } from "@/components/UserMenu";
 import { toast } from "sonner";
 import type { PromptSpecObject, GeneratedPrompt } from "@/types/prompt";
 import { Sparkles, Zap } from "lucide-react";
 
 const Index = () => {
+  const { user } = useAuth();
   const [generatedPrompt, setGeneratedPrompt] = useState<GeneratedPrompt | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleGenerate = async (formData: PromptSpecObject & { name: string }) => {
+  const handleGenerate = async (spec: PromptSpecObject) => {
     setIsGenerating(true);
     
     try {
-      // Extract name from formData
-      const { name, ...spec } = formData;
 
       // Call the generate-prompt edge function
       toast.info("Generating your prompt...");
@@ -45,7 +46,8 @@ const Index = () => {
       const { data: savedPrompt, error: saveError } = await supabase
         .from("prompts")
         .insert({
-          name,
+          created_by: user!.id,
+          visibility: 'private',
           goal_type: spec.goal_type,
           problem: spec.problem,
           precision: spec.precision,
@@ -58,7 +60,7 @@ const Index = () => {
           format: spec.format,
           generated_prompt: generatedText,
           quality_scores: qualityScores,
-        })
+        } as any)
         .select()
         .single();
 
@@ -66,7 +68,6 @@ const Index = () => {
 
       const result: GeneratedPrompt = {
         id: savedPrompt.id,
-        name,
         spec,
         generated_prompt: generatedText,
         quality_scores: qualityScores,
@@ -87,18 +88,23 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/5 to-background">
       <div className="container mx-auto py-8 px-4">
         {/* Header */}
-        <div className="text-center mb-12 space-y-4">
-          <div className="flex items-center justify-center gap-3">
-            <Zap className="h-12 w-12 text-primary" />
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              UPGE
-            </h1>
+        <div className="relative mb-12">
+          <div className="absolute top-0 right-0">
+            <UserMenu />
           </div>
-          <h2 className="text-3xl font-bold">Universal Prompt Generator Engine</h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Production-grade prompts for any domain, any model, any difficulty level.
-            From B1 to AGENT mode, optimized with quality gates and model profiles.
-          </p>
+          <div className="text-center space-y-4">
+            <div className="flex items-center justify-center gap-3">
+              <Zap className="h-12 w-12 text-primary" />
+              <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                UPGE
+              </h1>
+            </div>
+            <h2 className="text-3xl font-bold">Universal Prompt Generator Engine</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Production-grade prompts for any domain, any model, any difficulty level.
+              From B1 to AGENT mode, optimized with quality gates and model profiles.
+            </p>
+          </div>
         </div>
 
         {/* Main Content */}
