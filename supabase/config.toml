@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.validate-quality]
 verify_jwt = false
+
+[functions.optimize-prompt]
+verify_jwt = false
