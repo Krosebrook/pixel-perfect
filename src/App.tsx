@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { RateLimitWarning } from "@/components/RateLimitWarning";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Prompts from "./pages/Prompts";
@@ -20,6 +21,8 @@ import Teams from "./pages/Teams";
 import ApiUsage from "./pages/ApiUsage";
 import ApiDocs from "./pages/ApiDocs";
 import SecurityDashboard from "./pages/SecurityDashboard";
+import Analytics from "./pages/Analytics";
+import ApiKeys from "./pages/ApiKeys";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +30,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <RateLimitWarning />
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -46,6 +50,8 @@ const App = () => (
             <Route path="/api-usage" element={<ProtectedRoute><ApiUsage /></ProtectedRoute>} />
             <Route path="/api-docs" element={<ProtectedRoute><ApiDocs /></ProtectedRoute>} />
             <Route path="/security" element={<ProtectedRoute><SecurityDashboard /></ProtectedRoute>} />
+            <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+            <Route path="/api-keys" element={<ProtectedRoute><ApiKeys /></ProtectedRoute>} />
             <Route path="/share/:token" element={<SharedTestRun />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
