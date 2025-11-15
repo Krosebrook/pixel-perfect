@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      model_test_runs: {
+        Row: {
+          created_at: string
+          id: string
+          models: string[]
+          prompt_id: string | null
+          prompt_text: string
+          responses: Json
+          total_cost: number | null
+          total_latency_ms: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          models: string[]
+          prompt_id?: string | null
+          prompt_text: string
+          responses: Json
+          total_cost?: number | null
+          total_latency_ms?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          models?: string[]
+          prompt_id?: string | null
+          prompt_text?: string
+          responses?: Json
+          total_cost?: number | null
+          total_latency_ms?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "model_test_runs_prompt_id_fkey"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "prompts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "model_test_runs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

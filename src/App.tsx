@@ -11,6 +11,7 @@ import Prompts from "./pages/Prompts";
 import PromptDetail from "./pages/PromptDetail";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
+import ModelComparison from "./pages/ModelComparison";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/prompts/:id" element={<ProtectedRoute><PromptDetail /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+            <Route path="/models/compare" element={<ProtectedRoute><ModelComparison /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
