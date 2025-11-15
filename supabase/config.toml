@@ -1,0 +1,7 @@
+project_id = "pocnysyzkbluasjwgcqy"
+
+[functions.generate-prompt]
+verify_jwt = false
+
+[functions.validate-quality]
+verify_jwt = false
