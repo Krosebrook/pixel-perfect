@@ -1,9 +1,19 @@
 project_id = "pocnysyzkbluasjwgcqy"
 
-[functions.generate-prompt]
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[auth]
+enabled = true
+
+[functions.generate-insights]
 verify_jwt = false
 
-[functions.validate-quality]
+[functions.generate-prompt]
 verify_jwt = false
 
 [functions.optimize-prompt]
@@ -13,4 +23,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.run-comparison-stream]
+verify_jwt = false
+
+[functions.validate-quality]
 verify_jwt = false

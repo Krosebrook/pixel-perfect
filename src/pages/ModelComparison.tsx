@@ -5,6 +5,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Navigation } from '@/components/Navigation';
 import { FavoritePromptsDialog } from '@/components/FavoritePromptsDialog';
 import { ComparisonChart } from '@/components/ComparisonChart';
+import { ABTestDialog } from '@/components/ABTestDialog';
+import { CostTracker } from '@/components/CostTracker';
+import { ShareDialog } from '@/components/ShareDialog';
+import { AIInsights } from '@/components/AIInsights';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,6 +50,8 @@ export default function ModelComparison() {
   const [useStreaming, setUseStreaming] = useState(false);
   const [streamingResults, setStreamingResults] = useState<Map<string, Partial<ModelResult>>>(new Map());
   const [isStreaming, setIsStreaming] = useState(false);
+  const [abTestVariations, setABTestVariations] = useState<any[]>([]);
+  const [runningABTest, setRunningABTest] = useState(false);
 
   const { data: history } = useQuery({
     queryKey: ['model-comparison-history'],
@@ -195,6 +201,43 @@ export default function ModelComparison() {
     }
   };
 
+  const runABTest = async (variations: any[]) => {
+    setRunningABTest(true);
+    setABTestVariations(variations);
+    
+    try {
+      const parentTestId = crypto.randomUUID();
+      
+      for (const variation of variations) {
+        const { data, error } = await supabase.functions.invoke('run-comparison', {
+          body: { prompt: variation.prompt, models: selectedModels },
+        });
+
+        if (error) throw error;
+        if (!data.success) throw new Error(data.error || 'Comparison failed');
+
+        await supabase.from('model_test_runs').insert({
+          user_id: user!.id,
+          prompt_text: variation.prompt,
+          models: selectedModels,
+          responses: data.responses,
+          total_cost: data.totalCost,
+          total_latency_ms: data.totalLatency,
+          test_type: 'ab_test',
+          variation_name: variation.name,
+          parent_test_id: parentTestId,
+        } as any);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['model-comparison-history'] });
+      toast.success(`A/B test completed with ${variations.length} variations!`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'A/B test failed');
+    } finally {
+      setRunningABTest(false);
+    }
+  };
+
   const exportResults = (format: 'json' | 'csv') => {
     if (!displayResults) return;
 
@@ -249,8 +292,16 @@ export default function ModelComparison() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Model Comparison</h1>
           <p className="text-muted-foreground">
-            Compare AI models side-by-side with real-time streaming, performance charts, and export
+            Compare AI models side-by-side with A/B testing, cost tracking, and AI insights
           </p>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[1fr_350px] mb-6">
+          <div />
+          <div className="space-y-4">
+            <CostTracker />
+            <AIInsights />
+          </div>
         </div>
 
         <Tabs defaultValue="compare" className="space-y-6">
@@ -337,6 +388,8 @@ export default function ModelComparison() {
                         )}
                       </Button>
 
+                      <ABTestDialog onRunTest={runABTest} isRunning={runningABTest} />
+
                       {displayResults && (
                         <>
                           <Button variant="outline" onClick={() => exportResults('json')}>
@@ -416,22 +469,33 @@ export default function ModelComparison() {
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardDescription className="mb-2">
-                        {new Date(run.created_at).toLocaleString()}
-                      </CardDescription>
+                      <div className="flex items-center gap-2 mb-2">
+                        <CardDescription>
+                          {new Date(run.created_at).toLocaleString()}
+                        </CardDescription>
+                        {run.variation_name && (
+                          <Badge variant="outline">{run.variation_name}</Badge>
+                        )}
+                        {run.test_type === 'ab_test' && (
+                          <Badge variant="secondary">A/B Test</Badge>
+                        )}
+                      </div>
                       <CardTitle className="text-base line-clamp-2">
                         {run.prompt_text}
                       </CardTitle>
                     </div>
-                    <div className="flex gap-4 text-sm">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span>{run.total_latency_ms}ms</span>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-4 text-sm">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span>{run.total_latency_ms}ms</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <DollarSign className="h-4 w-4 text-muted-foreground" />
+                          <span>${run.total_cost?.toFixed(6)}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                        <span>${run.total_cost?.toFixed(6)}</span>
-                      </div>
+                      <ShareDialog testRunId={run.id} />
                     </div>
                   </div>
                 </CardHeader>

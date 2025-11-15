@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_insights: {
+        Row: {
+          based_on_runs: string[] | null
+          content: string
+          created_at: string | null
+          id: string
+          insight_type: string
+          is_read: boolean | null
+          user_id: string
+        }
+        Insert: {
+          based_on_runs?: string[] | null
+          content: string
+          created_at?: string | null
+          id?: string
+          insight_type: string
+          is_read?: boolean | null
+          user_id: string
+        }
+        Update: {
+          based_on_runs?: string[] | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          insight_type?: string
+          is_read?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_insights_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       favorite_prompts: {
         Row: {
           created_at: string
@@ -59,37 +97,59 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_public: boolean | null
           models: string[]
+          parent_test_id: string | null
           prompt_id: string | null
           prompt_text: string
           responses: Json
+          share_token: string | null
+          test_type: string | null
           total_cost: number | null
           total_latency_ms: number | null
           user_id: string
+          variation_name: string | null
         }
         Insert: {
           created_at?: string
           id?: string
+          is_public?: boolean | null
           models: string[]
+          parent_test_id?: string | null
           prompt_id?: string | null
           prompt_text: string
           responses: Json
+          share_token?: string | null
+          test_type?: string | null
           total_cost?: number | null
           total_latency_ms?: number | null
           user_id: string
+          variation_name?: string | null
         }
         Update: {
           created_at?: string
           id?: string
+          is_public?: boolean | null
           models?: string[]
+          parent_test_id?: string | null
           prompt_id?: string | null
           prompt_text?: string
           responses?: Json
+          share_token?: string | null
+          test_type?: string | null
           total_cost?: number | null
           total_latency_ms?: number | null
           user_id?: string
+          variation_name?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "model_test_runs_parent_test_id_fkey"
+            columns: ["parent_test_id"]
+            isOneToOne: false
+            referencedRelation: "model_test_runs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "model_test_runs_prompt_id_fkey"
             columns: ["prompt_id"]
@@ -349,6 +409,47 @@ export type Database = {
             columns: ["fork_of"]
             isOneToOne: false
             referencedRelation: "prompts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_budgets: {
+        Row: {
+          alert_threshold: number | null
+          created_at: string | null
+          current_spending: number | null
+          id: string
+          monthly_budget: number | null
+          period_start: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          alert_threshold?: number | null
+          created_at?: string | null
+          current_spending?: number | null
+          id?: string
+          monthly_budget?: number | null
+          period_start?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          alert_threshold?: number | null
+          created_at?: string | null
+          current_spending?: number | null
+          id?: string
+          monthly_budget?: number | null
+          period_start?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_budgets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
