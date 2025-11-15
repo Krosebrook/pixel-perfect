@@ -17,6 +17,9 @@ import Templates from "./pages/Templates";
 import Leaderboard from "./pages/Leaderboard";
 import ScheduledTests from "./pages/ScheduledTests";
 import Teams from "./pages/Teams";
+import ApiUsage from "./pages/ApiUsage";
+import ApiDocs from "./pages/ApiDocs";
+import SecurityDashboard from "./pages/SecurityDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +43,9 @@ const App = () => (
             <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
             <Route path="/scheduled-tests" element={<ProtectedRoute><ScheduledTests /></ProtectedRoute>} />
             <Route path="/teams" element={<ProtectedRoute><Teams /></ProtectedRoute>} />
+            <Route path="/api-usage" element={<ProtectedRoute><ApiUsage /></ProtectedRoute>} />
+            <Route path="/api-docs" element={<ProtectedRoute><ApiDocs /></ProtectedRoute>} />
+            <Route path="/security" element={<ProtectedRoute><SecurityDashboard /></ProtectedRoute>} />
             <Route path="/share/:token" element={<SharedTestRun />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

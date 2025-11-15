@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { User, Shield, Star } from 'lucide-react';
+import { SandboxToggle } from '@/components/SandboxToggle';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -215,6 +216,8 @@ export default function Profile() {
                 </Button>
               </CardContent>
             </Card>
+
+            <SandboxToggle />
           </div>
         </div>
       </div>
