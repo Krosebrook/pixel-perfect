@@ -41,76 +41,222 @@ export type Database = {
         }
         Relationships: []
       }
+      prompt_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      prompt_usage: {
+        Row: {
+          id: string
+          prompt_id: string
+          used_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          prompt_id: string
+          used_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          prompt_id?: string
+          used_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_usage_prompt_id_fkey"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "prompts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prompt_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prompt_versions: {
+        Row: {
+          created_at: string
+          created_by: string
+          generated_prompt: string
+          id: string
+          prompt_id: string
+          quality_scores: Json | null
+          spec: Json
+          version_number: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          generated_prompt: string
+          id?: string
+          prompt_id: string
+          quality_scores?: Json | null
+          spec: Json
+          version_number: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          generated_prompt?: string
+          id?: string
+          prompt_id?: string
+          quality_scores?: Json | null
+          spec?: Json
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prompt_versions_prompt_id_fkey"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "prompts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prompts: {
         Row: {
           abstract_template: Json | null
+          category_id: string | null
           constraints: string | null
           created_at: string | null
           created_by: string
           depth: string | null
+          description: string | null
+          fork_count: number | null
+          fork_of: string | null
           format: string
           generated_prompt: string
           goal_type: string
           id: string
+          is_featured: boolean | null
           model_target: string
           name: string
           precision: string
           problem: string
           quality_scores: Json | null
           success_criteria: string | null
+          tags: string[] | null
           tech_env: string | null
           updated_at: string | null
+          use_count: number | null
           visibility: string | null
           voice_style: string | null
         }
         Insert: {
           abstract_template?: Json | null
+          category_id?: string | null
           constraints?: string | null
           created_at?: string | null
           created_by: string
           depth?: string | null
+          description?: string | null
+          fork_count?: number | null
+          fork_of?: string | null
           format: string
           generated_prompt: string
           goal_type: string
           id?: string
+          is_featured?: boolean | null
           model_target: string
           name: string
           precision: string
           problem: string
           quality_scores?: Json | null
           success_criteria?: string | null
+          tags?: string[] | null
           tech_env?: string | null
           updated_at?: string | null
+          use_count?: number | null
           visibility?: string | null
           voice_style?: string | null
         }
         Update: {
           abstract_template?: Json | null
+          category_id?: string | null
           constraints?: string | null
           created_at?: string | null
           created_by?: string
           depth?: string | null
+          description?: string | null
+          fork_count?: number | null
+          fork_of?: string | null
           format?: string
           generated_prompt?: string
           goal_type?: string
           id?: string
+          is_featured?: boolean | null
           model_target?: string
           name?: string
           precision?: string
           problem?: string
           quality_scores?: Json | null
           success_criteria?: string | null
+          tags?: string[] | null
           tech_env?: string | null
           updated_at?: string | null
+          use_count?: number | null
           visibility?: string | null
           voice_style?: string | null
         }
         Relationships: [
           {
+            foreignKeyName: "prompts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_categories"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "prompts_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prompts_fork_of_fkey"
+            columns: ["fork_of"]
+            isOneToOne: false
+            referencedRelation: "prompts"
             referencedColumns: ["id"]
           },
         ]

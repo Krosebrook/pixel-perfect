@@ -3,7 +3,7 @@ import { PromptForm } from "@/components/PromptForm";
 import { PromptOutput } from "@/components/PromptOutput";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { UserMenu } from "@/components/UserMenu";
+import { Navigation } from "@/components/Navigation";
 import { toast } from "sonner";
 import type { PromptSpecObject, GeneratedPrompt } from "@/types/prompt";
 import { Sparkles, Zap } from "lucide-react";
@@ -85,26 +85,22 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-accent/5 to-background">
+    <div className="min-h-screen bg-background">
+      <Navigation />
       <div className="container mx-auto py-8 px-4">
         {/* Header */}
-        <div className="relative mb-12">
-          <div className="absolute top-0 right-0">
-            <UserMenu />
+        <div className="text-center mb-12 space-y-4">
+          <div className="flex items-center justify-center gap-3">
+            <Zap className="h-12 w-12 text-primary" />
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              UPGE
+            </h1>
           </div>
-          <div className="text-center space-y-4">
-            <div className="flex items-center justify-center gap-3">
-              <Zap className="h-12 w-12 text-primary" />
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                UPGE
-              </h1>
-            </div>
-            <h2 className="text-3xl font-bold">Universal Prompt Generator Engine</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Production-grade prompts for any domain, any model, any difficulty level.
-              From B1 to AGENT mode, optimized with quality gates and model profiles.
-            </p>
-          </div>
+          <h2 className="text-3xl font-bold">Universal Prompt Generator Engine</h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Production-grade prompts for any domain, any model, any difficulty level.
+            From B1 to AGENT mode, optimized with quality gates and model profiles.
+          </p>
         </div>
 
         {/* Main Content */}
