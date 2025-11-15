@@ -60,6 +60,7 @@ export type Database = {
           models: string[] | null
           name: string
           prompt_text: string
+          team_id: string | null
           updated_at: string
           user_id: string
         }
@@ -70,6 +71,7 @@ export type Database = {
           models?: string[] | null
           name: string
           prompt_text: string
+          team_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -80,10 +82,18 @@ export type Database = {
           models?: string[] | null
           name?: string
           prompt_text?: string
+          team_id?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "favorite_prompts_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "favorite_prompts_user_id_fkey"
             columns: ["user_id"]
@@ -104,6 +114,7 @@ export type Database = {
           prompt_text: string
           responses: Json
           share_token: string | null
+          team_id: string | null
           test_type: string | null
           total_cost: number | null
           total_latency_ms: number | null
@@ -120,6 +131,7 @@ export type Database = {
           prompt_text: string
           responses: Json
           share_token?: string | null
+          team_id?: string | null
           test_type?: string | null
           total_cost?: number | null
           total_latency_ms?: number | null
@@ -136,6 +148,7 @@ export type Database = {
           prompt_text?: string
           responses?: Json
           share_token?: string | null
+          team_id?: string | null
           test_type?: string | null
           total_cost?: number | null
           total_latency_ms?: number | null
@@ -155,6 +168,13 @@ export type Database = {
             columns: ["prompt_id"]
             isOneToOne: false
             referencedRelation: "prompts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "model_test_runs_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
@@ -219,6 +239,75 @@ export type Database = {
           slug?: string
         }
         Relationships: []
+      }
+      prompt_templates: {
+        Row: {
+          category_id: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string
+          difficulty_level: string | null
+          example_output: string | null
+          id: string
+          is_system: boolean | null
+          name: string
+          tags: string[] | null
+          team_id: string | null
+          template_content: string
+          updated_at: string | null
+          use_count: number | null
+          variables: Json | null
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description: string
+          difficulty_level?: string | null
+          example_output?: string | null
+          id?: string
+          is_system?: boolean | null
+          name: string
+          tags?: string[] | null
+          team_id?: string | null
+          template_content: string
+          updated_at?: string | null
+          use_count?: number | null
+          variables?: Json | null
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string
+          difficulty_level?: string | null
+          example_output?: string | null
+          id?: string
+          is_system?: boolean | null
+          name?: string
+          tags?: string[] | null
+          team_id?: string | null
+          template_content?: string
+          updated_at?: string | null
+          use_count?: number | null
+          variables?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_templates_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prompt_templates_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       prompt_usage: {
         Row: {
@@ -327,6 +416,7 @@ export type Database = {
           quality_scores: Json | null
           success_criteria: string | null
           tags: string[] | null
+          team_id: string | null
           tech_env: string | null
           updated_at: string | null
           use_count: number | null
@@ -355,6 +445,7 @@ export type Database = {
           quality_scores?: Json | null
           success_criteria?: string | null
           tags?: string[] | null
+          team_id?: string | null
           tech_env?: string | null
           updated_at?: string | null
           use_count?: number | null
@@ -383,6 +474,7 @@ export type Database = {
           quality_scores?: Json | null
           success_criteria?: string | null
           tags?: string[] | null
+          team_id?: string | null
           tech_env?: string | null
           updated_at?: string | null
           use_count?: number | null
@@ -411,7 +503,215 @@ export type Database = {
             referencedRelation: "prompts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "prompts_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      scheduled_test_results: {
+        Row: {
+          error_message: string | null
+          executed_at: string | null
+          id: string
+          scheduled_test_id: string
+          status: string
+          test_run_id: string | null
+        }
+        Insert: {
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          scheduled_test_id: string
+          status: string
+          test_run_id?: string | null
+        }
+        Update: {
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          scheduled_test_id?: string
+          status?: string
+          test_run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_test_results_scheduled_test_id_fkey"
+            columns: ["scheduled_test_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_tests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_test_results_test_run_id_fkey"
+            columns: ["test_run_id"]
+            isOneToOne: false
+            referencedRelation: "model_test_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduled_tests: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_run_at: string | null
+          models: string[]
+          name: string
+          next_run_at: string
+          notification_email: string | null
+          notification_enabled: boolean | null
+          prompt_id: string | null
+          prompt_text: string | null
+          schedule_config: Json | null
+          schedule_type: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          models: string[]
+          name: string
+          next_run_at: string
+          notification_email?: string | null
+          notification_enabled?: boolean | null
+          prompt_id?: string | null
+          prompt_text?: string | null
+          schedule_config?: Json | null
+          schedule_type: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          models?: string[]
+          name?: string
+          next_run_at?: string
+          notification_email?: string | null
+          notification_enabled?: boolean | null
+          prompt_id?: string | null
+          prompt_text?: string | null
+          schedule_config?: Json | null
+          schedule_type?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_tests_prompt_id_fkey"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "prompts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          id: string
+          joined_at: string | null
+          role: string
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string | null
+          role: string
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string | null
+          role?: string
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_shared_resources: {
+        Row: {
+          access_level: string
+          id: string
+          resource_id: string
+          resource_type: string
+          shared_at: string | null
+          shared_by: string
+          team_id: string
+        }
+        Insert: {
+          access_level: string
+          id?: string
+          resource_id: string
+          resource_type: string
+          shared_at?: string | null
+          shared_by: string
+          team_id: string
+        }
+        Update: {
+          access_level?: string
+          id?: string
+          resource_id?: string
+          resource_type?: string
+          shared_at?: string | null
+          shared_by?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_shared_resources_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          owner_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          owner_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          owner_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       user_budgets: {
         Row: {
@@ -488,6 +788,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_model_leaderboard: {
+        Args: { category_filter?: string; time_range_days?: number }
+        Returns: {
+          avg_cost: number
+          avg_latency_ms: number
+          cost_efficiency_score: number
+          model_name: string
+          success_rate: number
+          total_usage: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
