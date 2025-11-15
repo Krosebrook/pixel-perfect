@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.optimize-prompt]
 verify_jwt = false
+
+[functions.run-comparison]
+verify_jwt = false

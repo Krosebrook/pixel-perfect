@@ -36,6 +36,10 @@ export function Navigation() {
               <Library className="h-4 w-4 inline mr-2" />
               Library
             </NavLink>
+            <NavLink to="/models/compare">
+              <Zap className="h-4 w-4 inline mr-2" />
+              Compare
+            </NavLink>
             <NavLink to="/profile">
               <Settings className="h-4 w-4 inline mr-2" />
               Profile
