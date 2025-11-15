@@ -9,7 +9,30 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { userId, testRuns } = await req.json();
+    const requestSchema = z.object({
+      userId: z.string().uuid(),
+      testRuns: z.array(z.any()).max(100)
+    });
+    
+    const body = await req.json();
+    const { userId, testRuns } = requestSchema.parse(body);
+    
+    // Verify user from JWT matches userId
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Unauthorized');
+    }
+    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user } } = await supabase.auth.getUser(token);
+    
+    if (!user || user.id !== userId) {
+      throw new Error('Unauthorized');
+    }
 
     if (!userId || !testRuns || !Array.isArray(testRuns)) {
       return new Response(

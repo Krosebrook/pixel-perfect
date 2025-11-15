@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.1';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,7 +14,12 @@ serve(async (req) => {
   }
 
   try {
-    const { scheduledTestId } = await req.json();
+    const requestSchema = z.object({
+      scheduledTestId: z.string().uuid()
+    });
+    
+    const body = await req.json();
+    const { scheduledTestId } = requestSchema.parse(body);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -110,23 +116,8 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('Error in execute-scheduled-test:', error);
     
-    // Log failed execution
-    const { scheduledTestId } = await req.json();
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    await supabase
-      .from('scheduled_test_results')
-      .insert({
-        scheduled_test_id: scheduledTestId,
-        status: 'failed',
-        error_message: error.message,
-        executed_at: new Date().toISOString()
-      });
-
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Failed to execute scheduled test' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

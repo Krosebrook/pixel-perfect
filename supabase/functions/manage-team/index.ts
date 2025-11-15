@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.1';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,14 +14,30 @@ serve(async (req) => {
   }
 
   try {
-    const { action, teamId, userId, role, resourceType, resourceId, accessLevel } = await req.json();
+    const requestSchema = z.object({
+      action: z.enum(['add_member', 'remove_member', 'update_role', 'share_resource', 'unshare_resource']),
+      teamId: z.string().uuid(),
+      userId: z.string().uuid().optional(),
+      role: z.enum(['owner', 'admin', 'member', 'viewer']).optional(),
+      resourceType: z.enum(['prompt', 'test_run', 'template', 'favorite']).optional(),
+      resourceId: z.string().uuid().optional(),
+      accessLevel: z.enum(['view', 'edit']).optional()
+    });
+    
+    const body = await req.json();
+    const validated = requestSchema.parse(body);
+    const { action, teamId, userId, role, resourceType, resourceId, accessLevel } = validated;
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const authHeader = req.headers.get('Authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    if (!authHeader) {
+      throw new Error('Unauthorized');
+    }
+    
+    const token = authHeader.replace('Bearer ', '');
     const { data: { user } } = await supabase.auth.getUser(token);
 
     if (!user) {
@@ -148,9 +165,14 @@ serve(async (req) => {
     }
   } catch (error: any) {
     console.error('Error in manage-team:', error);
+    const errorMessage = error instanceof z.ZodError 
+      ? 'Invalid input parameters'
+      : error.message === 'Unauthorized'
+      ? 'Unauthorized'
+      : 'Failed to manage team';
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: errorMessage }),
+      { status: error.message === 'Unauthorized' ? 401 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
