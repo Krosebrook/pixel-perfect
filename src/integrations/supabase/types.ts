@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      favorite_prompts: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          models: string[] | null
+          name: string
+          prompt_text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          models?: string[] | null
+          name: string
+          prompt_text: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          models?: string[] | null
+          name?: string
+          prompt_text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorite_prompts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       model_test_runs: {
         Row: {
           created_at: string

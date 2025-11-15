@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigation } from '@/components/Navigation';
+import { FavoritePromptsDialog } from '@/components/FavoritePromptsDialog';
+import { ComparisonChart } from '@/components/ComparisonChart';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,9 +12,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Play, Clock, DollarSign, Zap, History } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Play, Clock, DollarSign, Zap, History, FileJson, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { Link } from 'react-router-dom';
 
 interface ModelResult {
   model: string;
@@ -37,9 +39,13 @@ const MODEL_OPTIONS = [
 
 export default function ModelComparison() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [prompt, setPrompt] = useState('');
   const [selectedModels, setSelectedModels] = useState<string[]>(['gpt-5', 'claude-sonnet-4-5', 'gemini-2.5-flash']);
   const [results, setResults] = useState<ModelResult[] | null>(null);
+  const [useStreaming, setUseStreaming] = useState(false);
+  const [streamingResults, setStreamingResults] = useState<Map<string, Partial<ModelResult>>>(new Map());
+  const [isStreaming, setIsStreaming] = useState(false);
 
   const { data: history } = useQuery({
     queryKey: ['model-comparison-history'],
@@ -59,26 +65,19 @@ export default function ModelComparison() {
 
   const runComparisonMutation = useMutation({
     mutationFn: async () => {
-      if (selectedModels.length === 0) {
-        throw new Error('Please select at least one model');
-      }
+      if (selectedModels.length === 0) throw new Error('Please select at least one model');
 
       const { data, error } = await supabase.functions.invoke('run-comparison', {
-        body: {
-          prompt,
-          models: selectedModels,
-        },
+        body: { prompt, models: selectedModels },
       });
 
       if (error) throw error;
       if (!data.success) throw new Error(data.error || 'Comparison failed');
-
       return data;
     },
     onSuccess: async (data) => {
       setResults(data.responses);
       
-      // Save to database
       await supabase.from('model_test_runs').insert({
         user_id: user!.id,
         prompt_text: prompt,
@@ -86,23 +85,162 @@ export default function ModelComparison() {
         responses: data.responses,
         total_cost: data.totalCost,
         total_latency_ms: data.totalLatency,
-      });
+      } as any);
 
+      queryClient.invalidateQueries({ queryKey: ['model-comparison-history'] });
       toast.success('Comparison complete!');
     },
     onError: (error) => {
-      console.error('Comparison error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to run comparison');
     },
   });
 
-  const toggleModel = (modelKey: string) => {
-    setSelectedModels(prev => 
-      prev.includes(modelKey) 
-        ? prev.filter(m => m !== modelKey)
-        : [...prev, modelKey]
-    );
+  const runStreamingComparison = async () => {
+    if (selectedModels.length === 0) {
+      toast.error('Please select at least one model');
+      return;
+    }
+
+    setIsStreaming(true);
+    const initialResults = new Map<string, Partial<ModelResult>>();
+    selectedModels.forEach(model => {
+      initialResults.set(model, { model, output: '', inputTokens: 0, outputTokens: 0, latency: 0, cost: 0, error: null });
+    });
+    setStreamingResults(initialResults);
+    setResults(null);
+
+    try {
+      const response = await fetch('https://pocnysyzkbluasjwgcqy.supabase.co/functions/v1/run-comparison-stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, models: selectedModels }),
+      });
+
+      if (!response.ok) throw new Error('Stream failed');
+      
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No reader');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim() || !line.startsWith('data: ')) continue;
+          
+          try {
+            const data = JSON.parse(line.slice(6));
+            
+            setStreamingResults(prev => {
+              const updated = new Map(prev);
+              const current = updated.get(data.model) || {};
+
+              if (data.type === 'delta') {
+                updated.set(data.model, { ...current, output: (current.output || '') + data.content });
+              } else if (data.type === 'complete') {
+                updated.set(data.model, {
+                  model: data.model,
+                  output: data.output,
+                  inputTokens: data.inputTokens,
+                  outputTokens: data.outputTokens,
+                  latency: data.latency,
+                  cost: data.cost,
+                  error: null,
+                });
+              } else if (data.type === 'error') {
+                updated.set(data.model, { ...current, error: data.error, latency: data.latency });
+              }
+
+              return updated;
+            });
+          } catch (e) {
+            console.error('Error parsing SSE:', e);
+          }
+        }
+      }
+
+      setStreamingResults(prev => {
+        const finalResults = Array.from(prev.values()) as ModelResult[];
+        setResults(finalResults);
+        
+        const totalCost = finalResults.reduce((sum, r) => sum + (r.cost || 0), 0);
+        const totalLatency = Math.max(...finalResults.map(r => r.latency || 0));
+        
+        supabase.from('model_test_runs').insert({
+          user_id: user!.id,
+          prompt_text: prompt,
+          models: selectedModels,
+          responses: finalResults,
+          total_cost: totalCost,
+          total_latency_ms: totalLatency,
+        } as any);
+
+        queryClient.invalidateQueries({ queryKey: ['model-comparison-history'] });
+        return prev;
+      });
+
+      toast.success('Streaming comparison complete!');
+    } catch (error) {
+      console.error('Streaming error:', error);
+      toast.error('Streaming comparison failed');
+    } finally {
+      setIsStreaming(false);
+    }
   };
+
+  const exportResults = (format: 'json' | 'csv') => {
+    if (!displayResults) return;
+
+    if (format === 'json') {
+      const blob = new Blob([JSON.stringify(displayResults, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `model-comparison-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Exported as JSON');
+    } else {
+      const headers = ['Model', 'Latency (ms)', 'Cost ($)', 'Input Tokens', 'Output Tokens', 'Error'];
+      const rows = displayResults.map(r => [
+        r.model,
+        r.latency,
+        r.cost.toFixed(6),
+        r.inputTokens,
+        r.outputTokens,
+        r.error || '',
+      ]);
+
+      const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `model-comparison-${Date.now()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Exported as CSV');
+    }
+  };
+
+  const toggleModel = (modelKey: string) => {
+    setSelectedModels(prev => prev.includes(modelKey) ? prev.filter(m => m !== modelKey) : [...prev, modelKey]);
+  };
+
+  const displayResults = useStreaming && streamingResults.size > 0 
+    ? Array.from(streamingResults.values()) as ModelResult[]
+    : results;
 
   return (
     <div className="min-h-screen bg-background">
@@ -111,7 +249,7 @@ export default function ModelComparison() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Model Comparison</h1>
           <p className="text-muted-foreground">
-            Run the same prompt across multiple AI models and compare results, speed, and cost
+            Compare AI models side-by-side with real-time streaming, performance charts, and export
           </p>
         </div>
 
@@ -129,7 +267,6 @@ export default function ModelComparison() {
 
           <TabsContent value="compare" className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
-              {/* Model Selection Sidebar */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm">Select Models</CardTitle>
@@ -144,10 +281,7 @@ export default function ModelComparison() {
                         onCheckedChange={() => toggleModel(model.key)}
                       />
                       <div className="grid gap-1.5 leading-none">
-                        <Label
-                          htmlFor={model.key}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
+                        <Label htmlFor={model.key} className="text-sm font-medium cursor-pointer">
                           {model.name}
                         </Label>
                         <p className="text-xs text-muted-foreground">
@@ -159,14 +293,23 @@ export default function ModelComparison() {
                 </CardContent>
               </Card>
 
-              {/* Main Content */}
               <div className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Prompt Input</CardTitle>
-                    <CardDescription>
-                      Enter a prompt to test across selected models
-                    </CardDescription>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle>Prompt Input</CardTitle>
+                        <CardDescription>Test prompt across selected models</CardDescription>
+                      </div>
+                      <FavoritePromptsDialog
+                        onSelectPrompt={(p, m) => {
+                          setPrompt(p);
+                          if (m.length > 0) setSelectedModels(m);
+                        }}
+                        currentPrompt={prompt}
+                        currentModels={selectedModels}
+                      />
+                    </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <Textarea
@@ -174,29 +317,47 @@ export default function ModelComparison() {
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
                       rows={6}
-                      className="resize-none"
                     />
-                    <Button
-                      onClick={() => runComparisonMutation.mutate()}
-                      disabled={runComparisonMutation.isPending || !prompt.trim() || selectedModels.length === 0}
-                      className="w-full"
-                    >
-                      {runComparisonMutation.isPending ? (
-                        <>Running comparison...</>
-                      ) : (
+                    
+                    <div className="flex items-center space-x-2">
+                      <Switch id="streaming" checked={useStreaming} onCheckedChange={setUseStreaming} />
+                      <Label htmlFor="streaming" className="cursor-pointer">
+                        Real-time streaming
+                      </Label>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => useStreaming ? runStreamingComparison() : runComparisonMutation.mutate()}
+                        disabled={runComparisonMutation.isPending || isStreaming || !prompt.trim() || selectedModels.length === 0}
+                        className="flex-1"
+                      >
+                        {(runComparisonMutation.isPending || isStreaming) ? 'Running...' : (
+                          <><Play className="h-4 w-4 mr-2" />Run Comparison</>
+                        )}
+                      </Button>
+
+                      {displayResults && (
                         <>
-                          <Play className="h-4 w-4 mr-2" />
-                          Run Comparison
+                          <Button variant="outline" onClick={() => exportResults('json')}>
+                            <FileJson className="h-4 w-4 mr-2" />JSON
+                          </Button>
+                          <Button variant="outline" onClick={() => exportResults('csv')}>
+                            <FileText className="h-4 w-4 mr-2" />CSV
+                          </Button>
                         </>
                       )}
-                    </Button>
+                    </div>
                   </CardContent>
                 </Card>
 
-                {/* Results */}
-                {results && (
+                {displayResults && displayResults.length > 0 && (
+                  <ComparisonChart results={displayResults} />
+                )}
+
+                {displayResults && (
                   <div className="grid gap-4">
-                    {results.map((result) => {
+                    {displayResults.map((result) => {
                       const modelInfo = MODEL_OPTIONS.find(m => m.key === result.model);
                       
                       return (
@@ -233,9 +394,9 @@ export default function ModelComparison() {
                                   </pre>
                                 </div>
                                 <div className="flex gap-4 text-xs text-muted-foreground">
-                                  <span>Input tokens: {result.inputTokens}</span>
-                                  <span>Output tokens: {result.outputTokens}</span>
-                                  <span>Total tokens: {result.inputTokens + result.outputTokens}</span>
+                                  <span>Input: {result.inputTokens}</span>
+                                  <span>Output: {result.outputTokens}</span>
+                                  <span>Total: {result.inputTokens + result.outputTokens}</span>
                                 </div>
                               </>
                             )}
@@ -288,7 +449,7 @@ export default function ModelComparison() {
             {history?.length === 0 && (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  No comparison history yet. Run your first comparison to see results here.
+                  No comparison history yet
                 </CardContent>
               </Card>
             )}
