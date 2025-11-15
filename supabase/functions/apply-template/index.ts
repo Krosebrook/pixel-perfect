@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.1';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,11 +14,21 @@ serve(async (req) => {
   }
 
   try {
-    const { templateId, variables } = await req.json();
+    const requestSchema = z.object({
+      templateId: z.string().uuid(),
+      variables: z.record(z.any())
+    });
+    
+    const body = await req.json();
+    const { templateId, variables } = requestSchema.parse(body);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: {
+        headers: { Authorization: req.headers.get('Authorization')! }
+      }
+    });
 
     // Fetch template
     const { data: template, error: fetchError } = await supabase
@@ -53,8 +64,11 @@ serve(async (req) => {
     );
   } catch (error: any) {
     console.error('Error in apply-template:', error);
+    const errorMessage = error instanceof z.ZodError 
+      ? 'Invalid input parameters'
+      : 'Failed to apply template';
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
