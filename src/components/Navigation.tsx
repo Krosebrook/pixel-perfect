@@ -1,7 +1,7 @@
 import { NavLink } from './NavLink';
 import { UserMenu } from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
-import { Zap, Library, Settings, Shield, Sparkles, Trophy, Clock, Users } from 'lucide-react';
+import { Zap, Library, Settings, Shield, Sparkles, Trophy, Clock, Users, Activity, FileText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -56,15 +56,25 @@ export function Navigation() {
               <Users className="h-4 w-4 inline mr-2" />
               Teams
             </NavLink>
-            <NavLink to="/profile">
-              <Settings className="h-4 w-4 inline mr-2" />
-              Profile
+            <NavLink to="/api-usage">
+              <Activity className="h-4 w-4 inline mr-2" />
+              API Usage
+            </NavLink>
+            <NavLink to="/api-docs">
+              <FileText className="h-4 w-4 inline mr-2" />
+              API Docs
             </NavLink>
             {isAdmin && (
-              <NavLink to="/admin">
-                <Shield className="h-4 w-4 inline mr-2" />
-                Admin
-              </NavLink>
+              <>
+                <NavLink to="/security">
+                  <Shield className="h-4 w-4 inline mr-2" />
+                  Security
+                </NavLink>
+                <NavLink to="/admin">
+                  <Shield className="h-4 w-4 inline mr-2" />
+                  Admin
+                </NavLink>
+              </>
             )}
           </div>
           <UserMenu />

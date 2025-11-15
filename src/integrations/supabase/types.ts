@@ -52,6 +52,44 @@ export type Database = {
           },
         ]
       }
+      api_rate_limits: {
+        Row: {
+          calls_count: number | null
+          created_at: string | null
+          endpoint_name: string
+          environment_mode: string
+          id: string
+          user_id: string
+          window_start: string | null
+        }
+        Insert: {
+          calls_count?: number | null
+          created_at?: string | null
+          endpoint_name: string
+          environment_mode: string
+          id?: string
+          user_id: string
+          window_start?: string | null
+        }
+        Update: {
+          calls_count?: number | null
+          created_at?: string | null
+          endpoint_name?: string
+          environment_mode?: string
+          id?: string
+          user_id?: string
+          window_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_rate_limits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       favorite_prompts: {
         Row: {
           created_at: string
@@ -192,6 +230,7 @@ export type Database = {
           bio: string | null
           created_at: string
           display_name: string | null
+          environment_mode: string | null
           id: string
           updated_at: string
         }
@@ -200,6 +239,7 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string | null
+          environment_mode?: string | null
           id: string
           updated_at?: string
         }
@@ -208,6 +248,7 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string | null
+          environment_mode?: string | null
           id?: string
           updated_at?: string
         }
@@ -718,6 +759,8 @@ export type Database = {
           alert_threshold: number | null
           created_at: string | null
           current_spending: number | null
+          daily_limit: number | null
+          environment_mode: string | null
           id: string
           monthly_budget: number | null
           period_start: string | null
@@ -728,6 +771,8 @@ export type Database = {
           alert_threshold?: number | null
           created_at?: string | null
           current_spending?: number | null
+          daily_limit?: number | null
+          environment_mode?: string | null
           id?: string
           monthly_budget?: number | null
           period_start?: string | null
@@ -738,6 +783,8 @@ export type Database = {
           alert_threshold?: number | null
           created_at?: string | null
           current_spending?: number | null
+          daily_limit?: number | null
+          environment_mode?: string | null
           id?: string
           monthly_budget?: number | null
           period_start?: string | null
@@ -788,6 +835,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_api_usage: {
+        Args: {
+          _environment_mode: string
+          _time_range?: unknown
+          _user_id: string
+        }
+        Returns: {
+          endpoint_name: string
+          last_call: string
+          total_calls: number
+        }[]
+      }
       get_model_leaderboard: {
         Args: { category_filter?: string; time_range_days?: number }
         Returns: {
@@ -799,12 +858,30 @@ export type Database = {
           total_usage: number
         }[]
       }
+      get_rate_limit_config: {
+        Args: { _environment_mode: string }
+        Returns: {
+          endpoint_name: string
+          max_calls_per_day: number
+          max_calls_per_hour: number
+          max_calls_per_minute: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_rate_limit: {
+        Args: {
+          _endpoint_name: string
+          _environment_mode: string
+          _user_id: string
+          _window_start: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

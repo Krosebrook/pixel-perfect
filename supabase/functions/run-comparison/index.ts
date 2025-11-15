@@ -1,7 +1,16 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.1';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+import { checkRateLimit, checkBudgetLimit } from '../_shared/rateLimiter.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const requestSchema = z.object({
+  prompt: z.string().min(1).max(10000),
+  models: z.array(z.string()).min(1).max(10)
+});
 
 interface ModelConfig {
   provider: 'openai' | 'anthropic' | 'lovable';
@@ -181,18 +190,76 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { prompt, models } = await req.json();
+    // Validate JWT and get user ID
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    if (!prompt || !models || !Array.isArray(models) || models.length === 0) {
+    const token = authHeader.replace('Bearer ', '');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse and validate request body
+    const body = await req.json();
+    const validationResult = requestSchema.safeParse(body);
+    
+    if (!validationResult.success) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid input parameters', details: validationResult.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { prompt, models } = validationResult.data;
+
+    // Get user's environment mode
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('environment_mode')
+      .eq('id', user.id)
+      .single();
+
+    const environmentMode = (profile?.environment_mode || 'production') as 'sandbox' | 'production';
+
+    // Check rate limit
+    const rateLimitCheck = await checkRateLimit(user.id, 'run-comparison', environmentMode);
+    if (!rateLimitCheck.allowed) {
       return new Response(
         JSON.stringify({ 
-          success: false, 
-          error: 'Missing required fields: prompt and models array' 
+          error: rateLimitCheck.message,
+          resetTime: rateLimitCheck.resetTime,
+          remainingCalls: rateLimitCheck.remainingCalls
         }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Estimate cost (rough estimate: $0.01 per model)
+    const estimatedCost = models.length * 0.01;
+
+    // Check budget limit
+    const budgetCheck = await checkBudgetLimit(user.id, environmentMode, estimatedCost);
+    if (!budgetCheck.allowed) {
+      return new Response(
+        JSON.stringify({ 
+          error: budgetCheck.message,
+          currentSpending: budgetCheck.currentSpending,
+          limit: budgetCheck.limit
+        }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -250,10 +317,14 @@ Deno.serve(async (req) => {
       }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in run-comparison function:', error);
     
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    const errorMessage = error instanceof z.ZodError 
+      ? 'Invalid input parameters'
+      : error.message === 'Unauthorized'
+      ? 'Unauthorized'
+      : error instanceof Error ? error.message : 'Internal server error';
     
     return new Response(
       JSON.stringify({ 
@@ -261,7 +332,7 @@ Deno.serve(async (req) => {
         error: errorMessage
       }),
       { 
-        status: 500, 
+        status: error.message === 'Unauthorized' ? 401 : 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
