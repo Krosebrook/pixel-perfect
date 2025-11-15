@@ -1,7 +1,16 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.1';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+import { checkRateLimit, checkBudgetLimit } from '../_shared/rateLimiter.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const requestSchema = z.object({
+  prompt: z.string().min(1).max(10000),
+  models: z.array(z.string()).min(1).max(10),
+});
 
 interface ModelConfig {
   provider: 'openai' | 'anthropic' | 'lovable';
@@ -201,20 +210,68 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { prompt, models } = await req.json();
-
-    if (!prompt || !models || !Array.isArray(models) || models.length === 0) {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const body = await req.json();
+    const validationResult = requestSchema.safeParse(body);
+    if (!validationResult.success) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid input', details: validationResult.error.issues }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const invalidModels = models.filter((m: string) => !MODEL_CONFIGS[m]);
-    if (invalidModels.length > 0) {
+    const { prompt, models } = validationResult.data;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('environment_mode')
+      .eq('id', user.id)
+      .single();
+
+    const environmentMode = (profile?.environment_mode || 'production') as 'sandbox' | 'production';
+
+    const rateLimitCheck = await checkRateLimit(user.id, 'run-comparison-stream', environmentMode);
+    if (!rateLimitCheck.allowed) {
       return new Response(
-        JSON.stringify({ error: `Invalid models: ${invalidModels.join(', ')}` }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          error: rateLimitCheck.message,
+          resetTime: rateLimitCheck.resetTime,
+          remainingCalls: rateLimitCheck.remainingCalls
+        }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const estimatedCost = models.length * 0.01;
+    const budgetCheck = await checkBudgetLimit(user.id, environmentMode, estimatedCost);
+    if (!budgetCheck.allowed) {
+      return new Response(
+        JSON.stringify({ 
+          error: budgetCheck.message,
+          currentSpending: budgetCheck.currentSpending,
+          limit: budgetCheck.limit
+        }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
