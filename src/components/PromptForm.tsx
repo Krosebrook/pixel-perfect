@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Sparkles } from "lucide-react";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import type { PromptSpecObject } from "@/types/prompt";
 
 const formSchema = z.object({
@@ -32,6 +33,7 @@ interface PromptFormProps {
 }
 
 export function PromptForm({ onGenerate, isGenerating }: PromptFormProps) {
+  const [errors, setErrors] = useState<any[]>([]);
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -44,19 +46,26 @@ export function PromptForm({ onGenerate, isGenerating }: PromptFormProps) {
   });
 
   const onSubmit = async (data: FormData) => {
-    const spec: PromptSpecObject = {
-      goal_type: data.goal_type,
-      problem: data.problem,
-      precision: data.precision,
-      model_target: data.model_target,
-      format: data.format,
-      success_criteria: data.success_criteria,
-      depth: data.depth,
-      constraints: data.constraints,
-      voice_style: data.voice_style,
-      tech_env: data.tech_env,
-    };
-    await onGenerate(spec);
+    setErrors([]);
+    try {
+      const spec: PromptSpecObject = {
+        goal_type: data.goal_type,
+        problem: data.problem,
+        precision: data.precision,
+        model_target: data.model_target,
+        format: data.format,
+        success_criteria: data.success_criteria,
+        depth: data.depth,
+        constraints: data.constraints,
+        voice_style: data.voice_style,
+        tech_env: data.tech_env,
+      };
+      await onGenerate(spec);
+    } catch (error: any) {
+      if (error?.errors) {
+        setErrors(error.errors);
+      }
+    }
   };
 
   return (
@@ -71,6 +80,7 @@ export function PromptForm({ onGenerate, isGenerating }: PromptFormProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {errors.length > 0 && <ErrorMessage errors={errors} className="mb-6" />}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">

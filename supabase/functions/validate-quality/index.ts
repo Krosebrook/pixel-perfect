@@ -1,4 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { checkRateLimit, checkBudgetLimit } from "../_shared/rateLimiter.ts";
+import { ValidateQualityRequestSchema } from "../_shared/schemas.ts";
+import { formatErrorResponse, formatAuthError, formatRateLimitError, formatBudgetError } from "../_shared/errorFormatter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,7 +15,64 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, spec } = await req.json();
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ success: false, errors: [formatAuthError()] }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return formatErrorResponse(new Error("Server configuration error"));
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false },
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ success: false, errors: [formatAuthError("Invalid authentication token")] }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { prompt, spec } = ValidateQualityRequestSchema.parse(await req.json());
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("environment_mode")
+      .eq("id", user.id)
+      .single();
+
+    const environmentMode = profile?.environment_mode || 'sandbox';
+
+    const rateLimitCheck = await checkRateLimit(user.id, 'validate-quality', environmentMode);
+    if (!rateLimitCheck.allowed) {
+      return new Response(
+        JSON.stringify({ success: false, errors: [formatRateLimitError(rateLimitCheck.message)] }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const estimatedCost = 0.002;
+    const budgetCheck = await checkBudgetLimit(user.id, environmentMode, estimatedCost);
+    if (!budgetCheck.allowed) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          errors: [formatBudgetError(budgetCheck.currentSpending || 0, budgetCheck.limit || 0)] 
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
@@ -107,15 +168,6 @@ Return quality scores as JSON.`,
     );
   } catch (error) {
     console.error("Error in validate-quality function:", error);
-    return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : "Unknown error",
-        success: false 
-      }),
-      { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500 
-      }
-    );
+    return formatErrorResponse(error);
   }
 });

@@ -4,6 +4,7 @@ import { PromptOutput } from "@/components/PromptOutput";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigation } from "@/components/Navigation";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { toast } from "sonner";
 import type { PromptSpecObject, GeneratedPrompt } from "@/types/prompt";
 import { Sparkles, Zap } from "lucide-react";
@@ -12,9 +13,11 @@ const Index = () => {
   const { user } = useAuth();
   const [generatedPrompt, setGeneratedPrompt] = useState<GeneratedPrompt | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [apiErrors, setApiErrors] = useState<any[]>([]);
 
   const handleGenerate = async (spec: PromptSpecObject) => {
     setIsGenerating(true);
+    setApiErrors([]);
     
     try {
 
@@ -25,7 +28,17 @@ const Index = () => {
         { body: { spec } }
       );
 
-      if (generateError) throw generateError;
+      if (generateError) {
+        if (generateError.context?.body) {
+          const errorBody = JSON.parse(generateError.context.body);
+          if (errorBody.errors) {
+            setApiErrors(errorBody.errors);
+            return;
+          }
+        }
+        throw generateError;
+      }
+      
       if (!generateData.success) throw new Error("Failed to generate prompt");
 
       const generatedText = generateData.generated_prompt;
@@ -102,6 +115,9 @@ const Index = () => {
             From B1 to AGENT mode, optimized with quality gates and model profiles.
           </p>
         </div>
+
+        {/* API Errors */}
+        {apiErrors.length > 0 && <ErrorMessage errors={apiErrors} className="mb-6 max-w-4xl mx-auto" />}
 
         {/* Main Content */}
         <div className="grid gap-8 max-w-6xl mx-auto">
