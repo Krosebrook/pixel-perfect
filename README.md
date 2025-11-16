@@ -1,3 +1,10 @@
+# PromptLab
+
+[![CI/CD Pipeline](https://github.com/USERNAME/REPO/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/USERNAME/REPO/actions)
+[![Coverage](https://codecov.io/gh/USERNAME/REPO/branch/main/graph/badge.svg)](https://codecov.io/gh/USERNAME/REPO)
+[![E2E Tests](https://img.shields.io/badge/e2e-playwright-green.svg)](https://playwright.dev/)
+[![Storybook](https://img.shields.io/badge/storybook-deployed-ff69b4.svg)](https://[username].github.io/[repo]/)
+
 # Welcome to your Lovable project
 
 ## Project info
@@ -63,6 +70,42 @@ This project is built with:
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/b0399bf8-e997-477c-b799-40406ae8332e) and click on Share -> Publish.
+
+## 🧪 Testing
+
+Comprehensive testing suite with multiple layers:
+
+### Unit & Integration Tests
+```bash
+npm run test              # Run all tests
+npm run test:watch        # Watch mode
+npm run test:ui          # Visual test UI
+npm run test:coverage    # Generate coverage report
+npm run test:run         # Run once (CI mode)
+```
+
+### End-to-End Tests
+```bash
+npm run test:e2e         # Run E2E tests
+npm run test:e2e:ui      # E2E test UI
+npm run test:e2e:headed  # Run with browser visible
+npm run test:e2e:debug   # Debug mode
+npm run test:e2e:report  # View test report
+```
+
+### Visual Regression Tests
+```bash
+npm run chromatic        # Run Chromatic visual tests
+npx playwright test e2e/visual  # Playwright visual tests
+```
+
+**Coverage Requirements:**
+- Overall: 80%
+- Per file: 70%
+- Functions: 80%
+- Branches: 75%
+
+See [Testing Documentation](./docs/TESTING.md) and [CI/CD Documentation](./docs/CI-CD.md) for more details.
 
 ## Can I connect a custom domain to my Lovable project?
 

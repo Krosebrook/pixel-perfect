@@ -1,8 +1,10 @@
 # Testing Guide
 
+This document outlines the comprehensive testing strategy for the PromptLab project, including unit tests, integration tests, E2E tests, and visual regression testing.
+
 ## Overview
 
-This project uses a comprehensive testing strategy to ensure code quality, reliability, and maintainability. We employ Vitest as our test runner with React Testing Library for component testing.
+This project uses multiple layers of testing to ensure code quality, reliability, and maintainability across all aspects of the application.
 
 ### Testing Philosophy
 
@@ -11,38 +13,79 @@ This project uses a comprehensive testing strategy to ensure code quality, relia
 - **Maintain high coverage**: Aim for 80%+ code coverage across the codebase
 - **Fast feedback**: Tests should run quickly to enable rapid development
 
-## Tech Stack
+## Testing Stack
 
-- **[Vitest](https://vitest.dev/)**: Fast, Vite-native test runner with Jest-compatible API
-- **[React Testing Library](https://testing-library.com/react)**: Simple and complete testing utilities for React
-- **[@testing-library/user-event](https://testing-library.com/docs/user-event/intro)**: Simulates real user interactions
-- **[jsdom](https://github.com/jsdom/jsdom)**: DOM implementation for Node.js testing environment
+### Unit & Integration Testing
+- **Vitest v4.0.9**: Fast unit test framework with great TypeScript support
+- **React Testing Library v16.3.0**: Testing utilities for React components
+- **jsdom**: DOM implementation for Node.js
+- **@testing-library/user-event**: User interaction simulation
+
+### E2E Testing
+- **Playwright**: Modern E2E testing framework
+- **@axe-core/playwright**: Accessibility testing
+- Cross-browser support (Chromium, Firefox, WebKit)
+
+### Visual Regression Testing
+- **Chromatic**: Storybook-integrated visual testing
+- **Playwright Screenshots**: Built-in visual comparisons
+- Automatic baseline management
 
 ## Running Tests
 
-### Watch Mode (Development)
-```bash
-npm test
-```
-Runs tests in watch mode. Tests automatically re-run when files change.
+### Unit Tests
 
-### UI Mode (Interactive)
 ```bash
+# Run all unit tests
+npm run test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with UI
 npm run test:ui
-```
-Opens the Vitest UI at `http://localhost:51204` with an interactive test explorer, coverage reports, and detailed test results.
 
-### Coverage Report
-```bash
+# Generate coverage report
 npm run test:coverage
-```
-Generates a comprehensive coverage report in the `coverage/` directory. Opens an HTML report showing line, branch, function, and statement coverage.
 
-### CI Mode (Single Run)
-```bash
+# Run tests once (for CI)
 npm run test:run
 ```
-Runs all tests once and exits. Used in CI/CD pipelines.
+
+### E2E Tests
+
+```bash
+# Run all E2E tests
+npm run test:e2e
+
+# Run E2E tests with UI mode
+npm run test:e2e:ui
+
+# Run E2E tests in headed mode (see browser)
+npm run test:e2e:headed
+
+# Debug specific test
+npm run test:e2e:debug
+
+# Run tests for specific browser
+npx playwright test --project=chromium
+
+# Generate E2E test report
+npm run test:e2e:report
+```
+
+### Visual Regression Tests
+
+```bash
+# Run visual regression tests
+npx playwright test e2e/visual
+
+# Update visual baselines
+npx playwright test --update-snapshots
+
+# Run Chromatic
+npm run chromatic
+```
 
 ## Writing Tests
 
