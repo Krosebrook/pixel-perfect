@@ -16,6 +16,9 @@ const config: StorybookConfig = {
   docs: {
     autodocs: 'tag',
   },
+  features: {
+    buildStoriesJson: true,  // Required for Chromatic
+  },
 };
 
 export default config;

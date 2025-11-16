@@ -1,3 +1,21 @@
+/**
+ * Custom test utilities for React Testing Library
+ * 
+ * This file provides wrapped render functions that include all necessary providers
+ * for testing components that depend on routing, authentication, queries, etc.
+ * 
+ * @example
+ * ```typescript
+ * import { render, screen, waitFor } from '@/test/test-utils';
+ * 
+ * test('my component', async () => {
+ *   render(<MyComponent />);
+ *   expect(screen.getByText('Hello')).toBeInTheDocument();
+ *   await waitFor(() => expect(screen.getByText('Loaded')).toBeVisible());
+ * });
+ * ```
+ */
+
 import { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -117,6 +135,31 @@ export const mockRateLimitUsage: RateLimitUsage[] = [
   },
 ];
 
-// Re-export everything from testing library
+/**
+ * Re-export all utilities from React Testing Library
+ * 
+ * This includes:
+ * - screen: Query the rendered DOM
+ * - waitFor: Wait for async operations
+ * - within: Scope queries to a specific element
+ * - fireEvent: Fire DOM events
+ * - cleanup: Clean up after tests
+ * - render: Basic render (use renderWithProviders instead)
+ * 
+ * @see https://testing-library.com/docs/react-testing-library/api
+ */
 export * from '@testing-library/react';
+
+/**
+ * User event utilities for simulating user interactions
+ * 
+ * @example
+ * ```typescript
+ * import userEvent from '@testing-library/user-event';
+ * 
+ * const user = userEvent.setup();
+ * await user.type(screen.getByLabelText('Email'), 'test@example.com');
+ * await user.click(screen.getByRole('button', { name: 'Submit' }));
+ * ```
+ */
 export { default as userEvent } from '@testing-library/user-event';
