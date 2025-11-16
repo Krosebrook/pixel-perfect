@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { DollarSign, Bell, Shield } from 'lucide-react';
+import { RateLimitMonitor } from '@/components/RateLimitMonitor';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -115,6 +116,9 @@ export default function Settings() {
         <h1 className="text-3xl font-bold mb-8">Settings</h1>
 
         <div className="space-y-6">
+          {/* Rate Limit Monitor */}
+          <RateLimitMonitor />
+
           {/* Environment Mode Display */}
           <Card>
             <CardHeader>
