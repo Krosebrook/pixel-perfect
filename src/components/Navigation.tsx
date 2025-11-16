@@ -1,7 +1,7 @@
 import { NavLink } from './NavLink';
 import { UserMenu } from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
-import { Zap, Library, Settings, Shield, Sparkles, Trophy, Clock, Users, Activity, FileText, BarChart, Key } from 'lucide-react';
+import { Zap, Library, Settings as SettingsIcon, Shield, Sparkles, Trophy, Clock, Users, Activity, FileText, BarChart, Key } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -71,6 +71,10 @@ export function Navigation() {
             <NavLink to="/api-keys">
               <Key className="h-4 w-4 inline mr-2" />
               API Keys
+            </NavLink>
+            <NavLink to="/settings">
+              <SettingsIcon className="h-4 w-4 inline mr-2" />
+              Settings
             </NavLink>
             {isAdmin && (
               <>

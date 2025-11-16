@@ -813,9 +813,11 @@ export type Database = {
           created_at: string | null
           current_spending: number | null
           daily_limit: number | null
+          email_notifications_enabled: boolean | null
           environment_mode: string | null
           id: string
           monthly_budget: number | null
+          notification_email: string | null
           period_start: string | null
           updated_at: string | null
           user_id: string
@@ -825,9 +827,11 @@ export type Database = {
           created_at?: string | null
           current_spending?: number | null
           daily_limit?: number | null
+          email_notifications_enabled?: boolean | null
           environment_mode?: string | null
           id?: string
           monthly_budget?: number | null
+          notification_email?: string | null
           period_start?: string | null
           updated_at?: string | null
           user_id: string
@@ -837,9 +841,11 @@ export type Database = {
           created_at?: string | null
           current_spending?: number | null
           daily_limit?: number | null
+          email_notifications_enabled?: boolean | null
           environment_mode?: string | null
           id?: string
           monthly_budget?: number | null
+          notification_email?: string | null
           period_start?: string | null
           updated_at?: string | null
           user_id?: string
