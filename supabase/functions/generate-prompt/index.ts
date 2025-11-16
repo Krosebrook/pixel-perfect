@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const specSchema = z.object({
   goal_type: z.string().min(1),
-  precision: z.enum(['B1', 'B2', 'A1', 'A2', 'S-Tier', 'AGENT']),
+  precision: z.enum(['B1', 'B2', 'A1', 'A2', 'S_TIER', 'AGENT']),
   model_target: z.enum(['gpt', 'claude', 'gemini', 'local']),
   format: z.string().min(1),
   problem: z.string().min(1).max(1000),
