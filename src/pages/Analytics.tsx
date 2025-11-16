@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigation } from '@/components/Navigation';
 import {
@@ -17,7 +15,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,192 +35,32 @@ import {
   PieChart as PieChartIcon,
   Loader2,
 } from 'lucide-react';
-import { subDays, format } from 'date-fns';
-
-const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+import { useEnvironmentMode } from '@/hooks/useProfile';
+import { useApiUsage } from '@/hooks/useApiUsage';
+import {
+  useAnalyticsSummary,
+  useDailySpending,
+  useCostByEndpoint,
+  useHourlyDistribution,
+} from '@/hooks/useAnalytics';
+import { CHART_COLORS, TIME_RANGES, TIME_RANGE_LABELS } from '@/lib/constants';
+import { formatCurrency, formatNumber, formatPercentage, formatEndpointName } from '@/lib/formatters';
 
 export default function Analytics() {
   const { user } = useAuth();
-  const [timeRange, setTimeRange] = useState('30');
+  const [timeRange, setTimeRange] = useState<string>(TIME_RANGES.THIRTY_DAYS);
 
-  const dateFrom = subDays(new Date(), parseInt(timeRange));
-  const dateTo = new Date();
+  const { data: environmentMode } = useEnvironmentMode(user?.id);
+  const { data: summaryStats, isLoading: statsLoading } = useAnalyticsSummary(user?.id, timeRange);
+  const { data: dailySpending } = useDailySpending(user?.id, timeRange);
+  const { data: costByEndpoint } = useCostByEndpoint(user?.id, timeRange);
+  const { data: hourlyDistribution } = useHourlyDistribution(user?.id, timeRange);
+  const { data: apiUsage } = useApiUsage(user?.id, environmentMode, `${timeRange} days`);
 
-  const { data: profile } = useQuery({
-    queryKey: ['profile', user?.id],
-    queryFn: async () => {
-      if (!user) throw new Error('Not authenticated');
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('environment_mode')
-        .eq('id', user.id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  // Summary statistics
-  const { data: summaryStats, isLoading: statsLoading } = useQuery({
-    queryKey: ['analytics-summary', user?.id, timeRange],
-    queryFn: async () => {
-      if (!user) return null;
-
-      const { data: runs } = await supabase
-        .from('model_test_runs')
-        .select('total_cost, total_latency_ms, responses, created_at')
-        .eq('user_id', user.id)
-        .gte('created_at', dateFrom.toISOString());
-
-      const totalRuns = runs?.length || 0;
-      const totalCost = runs?.reduce((sum, r) => sum + (r.total_cost || 0), 0) || 0;
-      const avgLatency = totalRuns > 0 
-        ? runs.reduce((sum, r) => sum + (r.total_latency_ms || 0), 0) / totalRuns 
-        : 0;
-      const successRate = totalRuns > 0
-        ? (runs.filter(r => r.responses).length / totalRuns) * 100
-        : 0;
-
-      // Calculate cost trend
-      const previousPeriodFrom = subDays(dateFrom, parseInt(timeRange));
-      const { data: previousRuns } = await supabase
-        .from('model_test_runs')
-        .select('total_cost')
-        .eq('user_id', user.id)
-        .gte('created_at', previousPeriodFrom.toISOString())
-        .lt('created_at', dateFrom.toISOString());
-
-      const previousCost = previousRuns?.reduce((sum, r) => sum + (r.total_cost || 0), 0) || 0;
-      const costTrend = previousCost > 0 ? ((totalCost - previousCost) / previousCost) * 100 : 0;
-
-      return {
-        totalRuns,
-        totalCost,
-        avgLatency,
-        successRate,
-        costTrend,
-      };
-    },
-    enabled: !!user,
-  });
-
-  // Daily spending trends
-  const { data: dailySpending } = useQuery({
-    queryKey: ['daily-spending', user?.id, timeRange],
-    queryFn: async () => {
-      if (!user) return [];
-
-      const { data: runs } = await supabase
-        .from('model_test_runs')
-        .select('total_cost, created_at')
-        .eq('user_id', user.id)
-        .gte('created_at', dateFrom.toISOString())
-        .order('created_at');
-
-      if (!runs) return [];
-
-      // Group by day
-      const grouped = runs.reduce((acc: any, run) => {
-        const date = format(new Date(run.created_at), 'MMM dd');
-        if (!acc[date]) {
-          acc[date] = { date, cost: 0, count: 0 };
-        }
-        acc[date].cost += run.total_cost || 0;
-        acc[date].count += 1;
-        return acc;
-      }, {});
-
-      return Object.values(grouped);
-    },
-    enabled: !!user,
-  });
-
-  // API call patterns
-  const { data: apiCallPatterns } = useQuery({
-    queryKey: ['api-call-patterns', user?.id, timeRange, profile?.environment_mode],
-    queryFn: async () => {
-      if (!user || !profile?.environment_mode) return [];
-
-      const { data: usage } = await supabase.rpc('get_api_usage', {
-        _user_id: user.id,
-        _environment_mode: profile.environment_mode,
-        _time_range: `${timeRange} days`,
-      });
-
-      return usage?.map((u: any) => ({
-        endpoint: u.endpoint_name?.replace(/-/g, ' ') || 'Unknown',
-        calls: u.total_calls || 0,
-      })) || [];
-    },
-    enabled: !!user && !!profile?.environment_mode,
-  });
-
-  // Cost breakdown by endpoint
-  const { data: costByEndpoint } = useQuery({
-    queryKey: ['cost-by-endpoint', user?.id, timeRange],
-    queryFn: async () => {
-      if (!user) return [];
-
-      const { data: runs } = await supabase
-        .from('model_test_runs')
-        .select('total_cost, prompt_text, responses')
-        .eq('user_id', user.id)
-        .gte('created_at', dateFrom.toISOString());
-
-      if (!runs) return [];
-
-      // Estimate endpoint from context
-      const endpointCosts: Record<string, number> = {};
-      
-      runs.forEach((run) => {
-        const responseStr = JSON.stringify(run.responses);
-        let endpoint = 'general';
-        
-        if (responseStr.includes('comparison')) endpoint = 'run-comparison';
-        else if (run.prompt_text?.includes('optimize')) endpoint = 'optimize-prompt';
-        else if (run.prompt_text?.includes('generate')) endpoint = 'generate-prompt';
-        
-        endpointCosts[endpoint] = (endpointCosts[endpoint] || 0) + (run.total_cost || 0);
-      });
-
-      return Object.entries(endpointCosts).map(([name, value]) => ({
-        name: name.replace(/-/g, ' '),
-        value: parseFloat(value.toFixed(4)),
-      }));
-    },
-    enabled: !!user,
-  });
-
-  // Hourly call distribution
-  const { data: hourlyDistribution } = useQuery({
-    queryKey: ['hourly-distribution', user?.id, timeRange],
-    queryFn: async () => {
-      if (!user) return [];
-
-      const { data: runs } = await supabase
-        .from('model_test_runs')
-        .select('created_at')
-        .eq('user_id', user.id)
-        .gte('created_at', dateFrom.toISOString());
-
-      if (!runs) return [];
-
-      const hourCounts: Record<number, number> = {};
-      for (let i = 0; i < 24; i++) hourCounts[i] = 0;
-
-      runs.forEach((run) => {
-        const hour = new Date(run.created_at).getHours();
-        hourCounts[hour] += 1;
-      });
-
-      return Object.entries(hourCounts).map(([hour, calls]) => ({
-        hour: `${hour.padStart(2, '0')}:00`,
-        calls,
-      }));
-    },
-    enabled: !!user,
-  });
+  const apiCallPatterns = apiUsage?.map((u) => ({
+    endpoint: formatEndpointName(u.endpoint_name),
+    calls: u.total_calls,
+  })) || [];
 
   if (statsLoading) {
     return (
@@ -254,10 +91,10 @@ export default function Analytics() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7">Last 7 Days</SelectItem>
-              <SelectItem value="30">Last 30 Days</SelectItem>
-              <SelectItem value="60">Last 60 Days</SelectItem>
-              <SelectItem value="90">Last 90 Days</SelectItem>
+              <SelectItem value={TIME_RANGES.SEVEN_DAYS}>{TIME_RANGE_LABELS[TIME_RANGES.SEVEN_DAYS]}</SelectItem>
+              <SelectItem value={TIME_RANGES.THIRTY_DAYS}>{TIME_RANGE_LABELS[TIME_RANGES.THIRTY_DAYS]}</SelectItem>
+              <SelectItem value={TIME_RANGES.SIXTY_DAYS}>{TIME_RANGE_LABELS[TIME_RANGES.SIXTY_DAYS]}</SelectItem>
+              <SelectItem value={TIME_RANGES.NINETY_DAYS}>{TIME_RANGE_LABELS[TIME_RANGES.NINETY_DAYS]}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -271,7 +108,7 @@ export default function Analytics() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {summaryStats?.totalRuns.toLocaleString() || 0}
+                {formatNumber(summaryStats?.totalRuns || 0)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 In the last {timeRange} days
@@ -286,13 +123,13 @@ export default function Analytics() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ${summaryStats?.totalCost.toFixed(2) || '0.00'}
+                {formatCurrency(summaryStats?.totalCost || 0)}
               </div>
               <p className={`text-xs mt-1 ${
                 (summaryStats?.costTrend || 0) > 0 ? 'text-red-600' : 'text-green-600'
               }`}>
                 {(summaryStats?.costTrend || 0) > 0 ? '+' : ''}
-                {summaryStats?.costTrend.toFixed(1)}% vs previous period
+                {formatPercentage(summaryStats?.costTrend || 0)} vs previous period
               </p>
             </CardContent>
           </Card>
@@ -319,7 +156,7 @@ export default function Analytics() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {summaryStats?.successRate.toFixed(1) || 0}%
+                {formatPercentage(summaryStats?.successRate || 0)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Successful API calls
@@ -356,14 +193,14 @@ export default function Analytics() {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="date" />
-                    <YAxis tickFormatter={(value) => `$${value.toFixed(2)}`} />
+                    <YAxis tickFormatter={(value) => formatCurrency(value)} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: 'hsl(var(--background))',
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '8px',
                       }}
-                      formatter={(value: any) => [`$${value.toFixed(4)}`, 'Cost']}
+                      formatter={(value: any) => [formatCurrency(value, 4), 'Cost']}
                     />
                     <Area
                       type="monotone"
@@ -465,7 +302,7 @@ export default function Analytics() {
                         dataKey="value"
                       >
                         {(costByEndpoint || []).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip
@@ -474,7 +311,7 @@ export default function Analytics() {
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '8px',
                         }}
-                        formatter={(value: any) => `$${value.toFixed(4)}`}
+                        formatter={(value: any) => formatCurrency(value, 4)}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -495,11 +332,11 @@ export default function Analytics() {
                         <div className="flex items-center gap-2">
                           <div
                             className="h-3 w-3 rounded-full"
-                            style={{ backgroundColor: COLORS[idx % COLORS.length] }}
+                            style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
                           />
                           <span className="text-sm font-medium capitalize">{endpoint.name}</span>
                         </div>
-                        <span className="text-sm font-bold">${endpoint.value.toFixed(4)}</span>
+                        <span className="text-sm font-bold">{formatCurrency(endpoint.value, 4)}</span>
                       </div>
                     ))}
                     {(!costByEndpoint || costByEndpoint.length === 0) && (
