@@ -138,15 +138,8 @@ export const mockRateLimitUsage: RateLimitUsage[] = [
 /**
  * Re-export all utilities from React Testing Library
  * 
- * This includes:
- * - screen: Query the rendered DOM
- * - waitFor: Wait for async operations
- * - within: Scope queries to a specific element
- * - fireEvent: Fire DOM events
- * - cleanup: Clean up after tests
- * - render: Basic render (use renderWithProviders instead)
- * 
- * @see https://testing-library.com/docs/react-testing-library/api
+ * Note: screen, waitFor, etc. are available globally after rendering components
+ * We rely on @testing-library/react's global exports
  */
 export * from '@testing-library/react';
 
