@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RateLimitWarning } from "@/components/RateLimitWarning";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { QueryErrorBoundary } from "@/components/QueryErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Prompts from "./pages/Prompts";
@@ -29,14 +31,16 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <RateLimitWarning />
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <QueryErrorBoundary>
+        <AuthProvider>
+          <RateLimitWarning />
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/prompts" element={<ProtectedRoute><Prompts /></ProtectedRoute>} />
@@ -57,11 +61,13 @@ const App = () => (
             <Route path="/share/:token" element={<SharedTestRun />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </AuthProvider>
+      </QueryErrorBoundary>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
