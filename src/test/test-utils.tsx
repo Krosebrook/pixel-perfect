@@ -119,5 +119,9 @@ export const mockRateLimitUsage: RateLimitUsage[] = [
 
 // Re-export everything from testing library
 export * from '@testing-library/react';
-export { waitFor } from '@testing-library/react';
 export { default as userEvent } from '@testing-library/user-event';
+
+// Explicitly export commonly used utilities
+import { waitFor as waitForUtil, screen as screenUtil } from '@testing-library/react';
+export const waitFor = waitForUtil;
+export const screen = screenUtil;
