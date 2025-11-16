@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
+import { waitFor } from '@/test/test-utils';
 import { useBudget, useUpdateBudget } from '../useBudget';
 import { supabase } from '@/integrations/supabase/client';
 import { createWrapper, mockUserBudget } from '@/test/test-utils';
