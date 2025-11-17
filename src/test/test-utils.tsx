@@ -138,8 +138,8 @@ export const mockRateLimitUsage: RateLimitUsage[] = [
 /**
  * Re-export all utilities from React Testing Library
  * 
- * Note: screen, waitFor, etc. are available globally after rendering components
- * We rely on @testing-library/react's global exports
+ * Note: screen, waitFor, etc. are available from @testing-library/react
+ * Import them directly in your tests alongside renderWithProviders
  */
 export * from '@testing-library/react';
 
