@@ -77,12 +77,22 @@ This project uses GitHub Actions for automated deployments:
 - **Trigger**: Automatically on every pull request
 - **Purpose**: Test features before merging to main
 - **URL Format**: `https://[username].github.io/[repo]/preview/pr-[number]/`
+- **Quality Gates**: Automated smoke tests verify critical functionality
 - **How to Use**: 
   1. Create a pull request
   2. Wait for preview deployment (2-3 minutes)
-  3. Check PR comments for preview URL
-  4. Share URL for review and testing
+  3. Smoke tests run automatically
+  4. Check PR comments for preview URL and test results
+  5. Share URL for review and testing
+  6. **Merge blocked until smoke tests pass**
 - **Cleanup**: Automatic when PR is closed/merged
+
+**Smoke Tests Verify:**
+- Preview environment loads successfully
+- No critical console errors
+- Authentication page is accessible
+- Main application elements render
+- No network errors for critical resources
 
 #### Production Deployment
 - **Trigger**: Automatically when all tests pass on `main` branch

@@ -4,6 +4,11 @@
 
 This project uses GitHub Actions for continuous integration and deployment. The CI/CD pipeline ensures code quality, runs tests, and deploys the application automatically.
 
+**Related Documentation:**
+- [Testing Guide](./TESTING.md) - Unit, integration, and E2E testing
+- [Smoke Tests Guide](./SMOKE-TESTS.md) - Preview environment quality gates
+- [Architecture Guide](./ARCHITECTURE.md) - Application architecture
+
 ## Pipeline Architecture
 
 ### Workflows
@@ -53,11 +58,41 @@ Runs on pull requests to `main` and `develop` branches.
 - Comments on PR with preview link
 - Automatic cleanup when PR closes
 - Branch-specific environments
+- Triggers smoke tests automatically
 
 **Preview URL Format:**
 `https://[username].github.io/[repo]/preview/pr-[number]/`
 
-#### 3. Production Deployment (`.github/workflows/deploy-production.yml`)
+#### 3. Preview Smoke Tests (`.github/workflows/preview-smoke-tests.yml`)
+
+Runs automatically after preview deployment completes.
+
+**Trigger:**
+- Workflow dependency on "Deploy Preview Environment"
+- Only runs on successful preview deployments
+
+**Tests Performed:**
+- Preview environment loads successfully
+- No critical console errors
+- Authentication page is accessible
+- Main application elements render
+- No network errors for critical resources
+
+**Features:**
+- Creates check run that blocks PR merge on failure
+- Comments on PR with test results
+- Uploads detailed test artifacts
+- Requires all tests to pass before merge
+
+**Merge Requirements:**
+PRs cannot be merged until smoke tests pass. This ensures:
+- Preview environment is functional
+- No critical errors introduced
+- Core functionality works as expected
+
+📖 **[View Smoke Tests Guide](./SMOKE-TESTS.md)** for detailed information on running, debugging, and extending smoke tests.
+
+#### 4. Production Deployment (`.github/workflows/deploy-production.yml`)
 
 Runs automatically when CI pipeline passes on `main` branch.
 
@@ -78,7 +113,7 @@ Runs automatically when CI pipeline passes on `main` branch.
 - Deployment URL in workflow summary
 - Failure notifications
 
-#### 4. Deploy Storybook (`.github/workflows/deploy.yml`)
+#### 5. Deploy Storybook (`.github/workflows/deploy.yml`)
 
 Runs on push to `main` branch.
 
@@ -87,7 +122,7 @@ Runs on push to `main` branch.
 - Deploys to GitHub Pages
 - Available at: `https://[username].github.io/[repo]/`
 
-#### 5. Chromatic Visual Tests (`.github/workflows/chromatic.yml`)
+#### 6. Chromatic Visual Tests (`.github/workflows/chromatic.yml`)
 
 Runs on push and pull requests.
 
@@ -130,7 +165,11 @@ graph TD
     F[Storybook Build] --> G[Deploy Storybook]
     J[Chromatic Tests]
     K[PR Opened/Updated] --> L[Deploy Preview Environment]
-    L --> M[Comment PR with URL]
+    L --> M[Run Smoke Tests]
+    M --> P{Tests Pass?}
+    P -->|Yes| Q[Allow Merge]
+    P -->|No| R[Block Merge]
+    L --> S[Comment PR with URL]
     N[PR Closed] --> O[Cleanup Preview]
 ```
 
@@ -214,7 +253,7 @@ npm run test:e2e:ui
 
 ### Preview Environments (Feature Branch Testing)
 
-Every pull request automatically gets its own preview environment:
+Every pull request automatically gets its own preview environment with automated quality checks:
 
 1. **Automatic Preview Creation**
    - Triggered when PR is opened or updated
@@ -222,22 +261,42 @@ Every pull request automatically gets its own preview environment:
    - Deploys to unique preview URL: `https://[username].github.io/[repo]/preview/pr-[number]/`
    - Posts preview URL as a PR comment
 
-2. **Testing Your Changes**
+2. **Automated Smoke Tests**
+   - Run automatically after preview deployment
+   - Verify critical functionality:
+     - Preview environment loads
+     - No critical console errors
+     - Authentication page accessible
+     - Main application renders correctly
+     - No network errors for critical resources
+   - **Block PR merge if tests fail**
+   - Post results as PR comment and check run
+
+3. **Testing Your Changes**
    - Click the preview URL in the PR comment
    - Test the feature in an isolated environment
    - Share the URL with teammates for review
-   - Each PR update refreshes the preview
+   - Each PR update refreshes preview and re-runs smoke tests
+   - Check smoke test results before requesting review
 
-3. **Automatic Cleanup**
+4. **Merge Requirements**
+   - All smoke tests must pass
+   - Check run status displayed in PR
+   - Cannot merge until tests succeed
+   - Ensures quality before production deployment
+
+5. **Automatic Cleanup**
    - Preview is automatically removed when PR is closed/merged
    - No manual cleanup needed
    - Keeps gh-pages branch clean
 
 **Benefits:**
 - Test features before merging to main
+- Automated quality checks prevent broken deployments
 - Share working demos with stakeholders
-- Catch integration issues early
+- Catch critical issues early
 - No impact on production environment
+- Enforced quality gates
 
 ### Automatic Production Deployment
 
@@ -299,14 +358,25 @@ View and manage preview deployments:
 
 **Managing Previews:**
 - Previews update automatically on new commits
+- Smoke tests run automatically after each preview deployment
 - Manual cleanup: Close/merge the PR
 - Check active previews: Browse gh-pages branch `/preview/` directory
 - Preview URLs follow format: `https://[username].github.io/[repo]/preview/pr-[number]/`
 
+**Smoke Test Results:**
+- View results in PR comments
+- Check "Preview Smoke Tests" status in PR checks
+- Download detailed test artifacts from Actions tab
+- Tests must pass before PR can be merged
+- Re-run tests by pushing new commits
+
 **Troubleshooting Previews:**
-- If preview doesn't update: Check workflow status in Actions tab
-- If URL returns 404: Wait 2-3 minutes for GitHub Pages to update
-- If build fails: Review workflow logs for errors
+- **Preview doesn't update**: Check workflow status in Actions tab
+- **URL returns 404**: Wait 2-3 minutes for GitHub Pages to update
+- **Build fails**: Review workflow logs for errors
+- **Smoke tests fail**: Check test results in PR comment and workflow artifacts
+- **Tests timeout**: Preview may not be fully deployed, wait and re-run
+- **False positive failures**: Review test artifacts, may need to adjust smoke tests
 
 ### Build Status
 
@@ -391,6 +461,31 @@ git commit -m "Manual cleanup of preview"
 git push origin gh-pages
 ```
 
+#### 6. Smoke Tests Failing
+
+**Symptoms**: PR blocked due to failed smoke tests
+
+**Solutions**:
+- **Preview loads failed**: Verify preview URL is accessible in browser
+- **Console errors**: Check browser console for JavaScript errors
+- **Auth page not found**: Ensure `/auth` route exists and renders
+- **Network errors**: Check that all API calls and resources load correctly
+- **Tests timeout**: Preview may still be deploying, wait 30 seconds and re-run
+
+**Debugging Smoke Tests**:
+```bash
+# Run smoke tests locally against preview
+PREVIEW_URL="https://[username].github.io/[repo]/preview/pr-[number]/" npx playwright test smoke-test.spec.ts
+
+# View detailed test results
+npx playwright show-report
+```
+
+**Bypassing Smoke Tests** (Not Recommended):
+- Smoke tests are required checks - they cannot be bypassed without admin permissions
+- Fix the underlying issues instead of bypassing tests
+- If tests are incorrectly failing, update the smoke test criteria
+
 ### Debug Commands
 
 ```bash
@@ -405,7 +500,53 @@ npm run test:ui
 
 # Check build output
 npm run build -- --debug
+
+# Run smoke tests locally
+PREVIEW_URL="https://[username].github.io/[repo]/preview/pr-[number]/" npx playwright test smoke-test.spec.ts
 ```
+
+## Required Status Checks Configuration
+
+To enforce smoke tests before allowing PR merges, configure branch protection rules:
+
+### Setting Up Required Checks
+
+1. **Navigate to Repository Settings**
+   - Go to Settings → Branches
+   - Click "Add rule" or edit existing rule for `main` branch
+
+2. **Configure Protection Rules**
+   - Check "Require status checks to pass before merging"
+   - Check "Require branches to be up to date before merging"
+   
+3. **Select Required Checks**
+   - Search and select: "Preview Smoke Tests"
+   - Search and select: "CI Pipeline" jobs:
+     - `lint`
+     - `unit-tests`
+     - `e2e-tests`
+     - `build`
+
+4. **Additional Recommended Settings**
+   - Check "Require a pull request before merging"
+   - Set "Required approvals" to 1 or more
+   - Check "Dismiss stale pull request approvals"
+
+### What This Enforces
+
+With these rules enabled:
+- ✅ PRs cannot be merged if smoke tests fail
+- ✅ All CI checks must pass
+- ✅ Preview environment must be functional
+- ✅ Code must be reviewed before merging
+- ✅ Protection against broken deployments
+
+### Overriding Checks (Admin Only)
+
+Repository admins can bypass checks when necessary:
+- Use only for critical hotfixes
+- Document reason in PR description
+- Fix underlying issues immediately after merge
 
 ## Best Practices
 
