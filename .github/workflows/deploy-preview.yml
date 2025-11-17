@@ -1,0 +1,185 @@
+name: Deploy Preview Environment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+      - develop
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    name: Deploy Preview for PR #${{ github.event.pull_request.number }}
+    runs-on: ubuntu-latest
+    if: github.event.action != 'closed'
+    environment:
+      name: preview-${{ github.event.pull_request.number }}
+      url: ${{ steps.deploy.outputs.preview_url }}
+    
+    steps:
+      - name: Checkout PR Branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build Preview
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_BASE_URL: /preview/pr-${{ github.event.pull_request.number }}/
+      
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+      
+      - name: Deploy to Preview Directory
+        id: deploy
+        run: |
+          # Create preview directory structure
+          mkdir -p gh-pages/preview/pr-${{ github.event.pull_request.number }}
+          
+          # Copy build to preview directory
+          cp -r dist/* gh-pages/preview/pr-${{ github.event.pull_request.number }}/
+          
+          # Navigate to gh-pages directory
+          cd gh-pages
+          
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Commit and push
+          git add .
+          git commit -m "Deploy preview for PR #${{ github.event.pull_request.number }}" || echo "No changes to commit"
+          git push origin gh-pages
+          
+          # Set output
+          echo "preview_url=https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/preview/pr-${{ github.event.pull_request.number }}/" >> $GITHUB_OUTPUT
+      
+      - name: Comment PR with Preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const previewUrl = '${{ steps.deploy.outputs.preview_url }}';
+            const prNumber = context.issue.number;
+            
+            // Find existing preview comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            
+            const botComment = comments.data.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Preview Environment Deployed')
+            );
+            
+            const body = `## 🚀 Preview Environment Deployed
+            
+            **Preview URL:** ${previewUrl}
+            
+            ---
+            
+            **Build Information:**
+            - **Commit:** ${{ github.event.pull_request.head.sha }}
+            - **Branch:** \`${{ github.event.pull_request.head.ref }}\`
+            - **Deployed at:** ${new Date().toUTCString()}
+            
+            The preview will be automatically removed when this PR is closed.`;
+            
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body
+              });
+            }
+      
+      - name: Deployment Summary
+        run: |
+          echo "### ✅ Preview Deployed Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Preview URL:** ${{ steps.deploy.outputs.preview_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.event.pull_request.head.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.event.pull_request.head.sha }}" >> $GITHUB_STEP_SUMMARY
+
+  cleanup-preview:
+    name: Cleanup Preview Environment
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed'
+    
+    steps:
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+      
+      - name: Remove Preview Directory
+        run: |
+          # Remove preview directory
+          rm -rf preview/pr-${{ github.event.pull_request.number }}
+          
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Commit and push
+          git add .
+          git commit -m "Cleanup preview for PR #${{ github.event.pull_request.number }}" || echo "No changes to commit"
+          git push origin gh-pages
+      
+      - name: Comment PR Cleanup
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: '## 🧹 Preview Environment Cleaned Up\n\nThe preview environment has been removed as this PR is now closed.'
+            });
+      
+      - name: Cleanup Summary
+        run: |
+          echo "### 🧹 Preview Cleaned Up" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "Preview environment has been removed." >> $GITHUB_STEP_SUMMARY

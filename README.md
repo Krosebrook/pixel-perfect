@@ -69,7 +69,37 @@ This project is built with:
 
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/b0399bf8-e997-477c-b799-40406ae8332e) and click on Share -> Publish.
+### Automatic Deployments
+
+This project uses GitHub Actions for automated deployments:
+
+#### Preview Environments
+- **Trigger**: Automatically on every pull request
+- **Purpose**: Test features before merging to main
+- **URL Format**: `https://[username].github.io/[repo]/preview/pr-[number]/`
+- **How to Use**: 
+  1. Create a pull request
+  2. Wait for preview deployment (2-3 minutes)
+  3. Check PR comments for preview URL
+  4. Share URL for review and testing
+- **Cleanup**: Automatic when PR is closed/merged
+
+#### Production Deployment
+- **Trigger**: Automatically when all tests pass on `main` branch
+- **Prerequisites**: CI pipeline must succeed (lint, tests, build)
+- **URL**: Your GitHub Pages URL or custom domain
+- **Process**: Merge PR → Tests pass → Auto-deploy
+
+#### Storybook Documentation
+- **Trigger**: Automatically on push to `main`
+- **Purpose**: Component documentation and visual testing
+- **URL**: `https://[username].github.io/[repo]/`
+
+### Manual Deployment via Lovable
+
+Simply open [Lovable](https://lovable.dev/projects/b0399bf8-e997-477c-b799-40406ae8332e) and click on Share → Publish.
+
+See [CI/CD Documentation](./docs/CI-CD.md) for detailed deployment information.
 
 ## 🧪 Testing
 
