@@ -26,6 +26,7 @@ import SecurityDashboard from "./pages/SecurityDashboard";
 import Analytics from "./pages/Analytics";
 import ApiKeys from "./pages/ApiKeys";
 import Settings from "./pages/Settings";
+import DeploymentMetrics from "./pages/DeploymentMetrics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -58,6 +59,7 @@ const App = () => (
             <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
             <Route path="/api-keys" element={<ProtectedRoute><ApiKeys /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/deployment-metrics" element={<ProtectedRoute><DeploymentMetrics /></ProtectedRoute>} />
             <Route path="/share/:token" element={<SharedTestRun />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
