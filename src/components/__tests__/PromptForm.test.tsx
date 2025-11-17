@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderWithProviders } from '@/test/test-utils';
-import { screen, waitFor } from '@testing-library/dom';
-import userEvent from '@testing-library/user-event';
+import { renderWithProviders, userEvent } from '@/test/test-utils';
+import { screen, waitFor } from '@testing-library/react';
+import type { User } from '@supabase/supabase-js';
 import { PromptForm } from '../PromptForm';
 
 describe('PromptForm', () => {
