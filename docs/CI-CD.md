@@ -40,7 +40,24 @@ Runs on every push and pull request to `main` and `develop` branches.
   - Builds Storybook documentation
   - Uploads static files
 
-#### 2. Production Deployment (`.github/workflows/deploy-production.yml`)
+#### 2. Preview Environment (`.github/workflows/deploy-preview.yml`)
+
+Runs on pull requests to `main` and `develop` branches.
+
+**Trigger:**
+- PR opened, synchronized, or reopened
+- PR closed (for cleanup)
+
+**Features:**
+- Deploys each PR to unique preview URL
+- Comments on PR with preview link
+- Automatic cleanup when PR closes
+- Branch-specific environments
+
+**Preview URL Format:**
+`https://[username].github.io/[repo]/preview/pr-[number]/`
+
+#### 3. Production Deployment (`.github/workflows/deploy-production.yml`)
 
 Runs automatically when CI pipeline passes on `main` branch.
 
@@ -61,7 +78,7 @@ Runs automatically when CI pipeline passes on `main` branch.
 - Deployment URL in workflow summary
 - Failure notifications
 
-#### 3. Deploy Storybook (`.github/workflows/deploy.yml`)
+#### 4. Deploy Storybook (`.github/workflows/deploy.yml`)
 
 Runs on push to `main` branch.
 
@@ -70,7 +87,7 @@ Runs on push to `main` branch.
 - Deploys to GitHub Pages
 - Available at: `https://[username].github.io/[repo]/`
 
-#### 4. Chromatic Visual Tests (`.github/workflows/chromatic.yml`)
+#### 5. Chromatic Visual Tests (`.github/workflows/chromatic.yml`)
 
 Runs on push and pull requests.
 
@@ -112,6 +129,9 @@ graph TD
     H -->|No| I[Skip Deployment]
     F[Storybook Build] --> G[Deploy Storybook]
     J[Chromatic Tests]
+    K[PR Opened/Updated] --> L[Deploy Preview Environment]
+    L --> M[Comment PR with URL]
+    N[PR Closed] --> O[Cleanup Preview]
 ```
 
 ## Test Coverage Requirements
@@ -192,6 +212,33 @@ npm run test:e2e:ui
 
 ## Deployment Process
 
+### Preview Environments (Feature Branch Testing)
+
+Every pull request automatically gets its own preview environment:
+
+1. **Automatic Preview Creation**
+   - Triggered when PR is opened or updated
+   - Builds the feature branch code
+   - Deploys to unique preview URL: `https://[username].github.io/[repo]/preview/pr-[number]/`
+   - Posts preview URL as a PR comment
+
+2. **Testing Your Changes**
+   - Click the preview URL in the PR comment
+   - Test the feature in an isolated environment
+   - Share the URL with teammates for review
+   - Each PR update refreshes the preview
+
+3. **Automatic Cleanup**
+   - Preview is automatically removed when PR is closed/merged
+   - No manual cleanup needed
+   - Keeps gh-pages branch clean
+
+**Benefits:**
+- Test features before merging to main
+- Share working demos with stakeholders
+- Catch integration issues early
+- No impact on production environment
+
 ### Automatic Production Deployment
 
 The production application deploys automatically when all tests pass on the `main` branch:
@@ -240,6 +287,26 @@ Trigger manual deployments when needed:
    - Select branch and run
 
 ## Monitoring & Alerts
+
+### Preview Environments
+
+View and manage preview deployments:
+
+**Finding Preview URLs:**
+- Check PR comments for preview links
+- View in Actions tab under "Deploy Preview Environment"
+- Access via workflow summary
+
+**Managing Previews:**
+- Previews update automatically on new commits
+- Manual cleanup: Close/merge the PR
+- Check active previews: Browse gh-pages branch `/preview/` directory
+- Preview URLs follow format: `https://[username].github.io/[repo]/preview/pr-[number]/`
+
+**Troubleshooting Previews:**
+- If preview doesn't update: Check workflow status in Actions tab
+- If URL returns 404: Wait 2-3 minutes for GitHub Pages to update
+- If build fails: Review workflow logs for errors
 
 ### Build Status
 
@@ -302,6 +369,27 @@ Track:
 - Accept intentional changes
 - Fix unintentional changes
 - Update components
+
+#### 5. Preview Deployment Issues
+
+**Symptoms**: Preview environment not accessible or outdated
+
+**Solutions**:
+- **404 Error**: Wait 2-3 minutes for GitHub Pages CDN to update
+- **Stale Preview**: Check workflow logs - may need to re-trigger
+- **Build Failed**: Review "Deploy Preview Environment" workflow logs
+- **Missing Comment**: Check PR permissions and GitHub Actions token
+- **Wrong Content**: Verify correct branch is being deployed
+- Clear browser cache and try again
+
+**Manual Cleanup**:
+```bash
+# If preview isn't auto-cleaned
+git checkout gh-pages
+git rm -rf preview/pr-[number]
+git commit -m "Manual cleanup of preview"
+git push origin gh-pages
+```
 
 ### Debug Commands
 
