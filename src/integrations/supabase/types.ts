@@ -143,6 +143,101 @@ export type Database = {
           },
         ]
       }
+      deployment_incidents: {
+        Row: {
+          deployment_id: string
+          detected_at: string
+          failed_checks: string[] | null
+          github_issue_number: number | null
+          github_issue_url: string | null
+          id: string
+          incident_type: string
+          resolution_notes: string | null
+          resolution_time_minutes: number | null
+          resolved_at: string | null
+          severity: string
+        }
+        Insert: {
+          deployment_id: string
+          detected_at?: string
+          failed_checks?: string[] | null
+          github_issue_number?: number | null
+          github_issue_url?: string | null
+          id?: string
+          incident_type: string
+          resolution_notes?: string | null
+          resolution_time_minutes?: number | null
+          resolved_at?: string | null
+          severity?: string
+        }
+        Update: {
+          deployment_id?: string
+          detected_at?: string
+          failed_checks?: string[] | null
+          github_issue_number?: number | null
+          github_issue_url?: string | null
+          id?: string
+          incident_type?: string
+          resolution_notes?: string | null
+          resolution_time_minutes?: number | null
+          resolved_at?: string | null
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deployment_incidents_deployment_id_fkey"
+            columns: ["deployment_id"]
+            isOneToOne: false
+            referencedRelation: "deployment_metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deployment_metrics: {
+        Row: {
+          commit_sha: string
+          completed_at: string | null
+          created_at: string
+          deployment_type: string
+          deployment_url: string | null
+          duration_seconds: number | null
+          error_message: string | null
+          health_check_status: string | null
+          id: string
+          started_at: string
+          status: string
+          workflow_run_id: string
+        }
+        Insert: {
+          commit_sha: string
+          completed_at?: string | null
+          created_at?: string
+          deployment_type: string
+          deployment_url?: string | null
+          duration_seconds?: number | null
+          error_message?: string | null
+          health_check_status?: string | null
+          id?: string
+          started_at: string
+          status: string
+          workflow_run_id: string
+        }
+        Update: {
+          commit_sha?: string
+          completed_at?: string | null
+          created_at?: string
+          deployment_type?: string
+          deployment_url?: string | null
+          duration_seconds?: number | null
+          error_message?: string | null
+          health_check_status?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          workflow_run_id?: string
+        }
+        Relationships: []
+      }
       favorite_prompts: {
         Row: {
           created_at: string
@@ -904,6 +999,20 @@ export type Database = {
           endpoint_name: string
           last_call: string
           total_calls: number
+        }[]
+      }
+      get_deployment_statistics: {
+        Args: { days_back?: number }
+        Returns: {
+          avg_deployment_duration_seconds: number
+          avg_resolution_time_minutes: number
+          failed_deployments: number
+          resolved_incidents: number
+          rollback_count: number
+          success_rate: number
+          successful_deployments: number
+          total_deployments: number
+          total_incidents: number
         }[]
       }
       get_model_leaderboard: {

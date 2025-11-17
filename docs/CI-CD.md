@@ -791,6 +791,7 @@ When adding CI/CD changes:
 
 ## Resources
 
+- [Deployment Metrics Dashboard](./DEPLOYMENT-METRICS.md)
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [Playwright CI Documentation](https://playwright.dev/docs/ci)
 - [Chromatic Documentation](https://www.chromatic.com/docs)
