@@ -1,0 +1,256 @@
+name: Preview Environment Smoke Tests
+
+on:
+  workflow_run:
+    workflows: ["Deploy Preview Environment"]
+    types:
+      - completed
+    branches-ignore:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+  statuses: write
+
+jobs:
+  smoke-tests:
+    name: Run Smoke Tests on Preview
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright
+        run: npx playwright install chromium
+      
+      - name: Extract PR Number
+        id: pr
+        run: |
+          PR_NUMBER=$(echo "${{ github.event.workflow_run.head_branch }}" | grep -oP 'pr-\K\d+' || echo "")
+          if [ -z "$PR_NUMBER" ]; then
+            # Try to get PR number from API
+            PR_NUMBER=$(gh pr list --state open --head "${{ github.event.workflow_run.head_branch }}" --json number --jq '.[0].number')
+          fi
+          echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+      
+      - name: Wait for Preview Deployment
+        run: |
+          echo "Waiting for preview deployment to be ready..."
+          sleep 30
+      
+      - name: Run Smoke Tests
+        id: smoke_tests
+        run: |
+          PREVIEW_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/preview/pr-${{ steps.pr.outputs.number }}/"
+          echo "Testing preview at: $PREVIEW_URL"
+          
+          # Create smoke test script
+          cat > smoke-test.spec.ts << 'EOF'
+          import { test, expect } from '@playwright/test';
+          
+          const PREVIEW_URL = process.env.PREVIEW_URL || '';
+          
+          test.describe('Preview Environment Smoke Tests', () => {
+            test('preview environment loads successfully', async ({ page }) => {
+              const response = await page.goto(PREVIEW_URL, { waitUntil: 'networkidle' });
+              expect(response?.status()).toBeLessThan(400);
+            });
+            
+            test('no critical console errors', async ({ page }) => {
+              const errors: string[] = [];
+              
+              page.on('console', (msg) => {
+                if (msg.type() === 'error') {
+                  errors.push(msg.text());
+                }
+              });
+              
+              await page.goto(PREVIEW_URL, { waitUntil: 'networkidle' });
+              await page.waitForTimeout(2000);
+              
+              // Filter out known non-critical errors
+              const criticalErrors = errors.filter(error => 
+                !error.includes('favicon') && 
+                !error.includes('404') &&
+                !error.includes('WebSocket')
+              );
+              
+              expect(criticalErrors.length).toBe(0);
+            });
+            
+            test('authentication page is accessible', async ({ page }) => {
+              await page.goto(`${PREVIEW_URL}auth`, { waitUntil: 'networkidle' });
+              await expect(page.locator('h1, h2')).toContainText(/sign|login|auth/i, { timeout: 10000 });
+            });
+            
+            test('main application elements render', async ({ page }) => {
+              await page.goto(PREVIEW_URL, { waitUntil: 'networkidle' });
+              
+              // Check for common app elements
+              const hasNavigation = await page.locator('nav, [role="navigation"]').count() > 0;
+              const hasMainContent = await page.locator('main, [role="main"]').count() > 0;
+              
+              expect(hasNavigation || hasMainContent).toBeTruthy();
+            });
+            
+            test('no network errors for critical resources', async ({ page }) => {
+              const failedRequests: string[] = [];
+              
+              page.on('requestfailed', request => {
+                const url = request.url();
+                // Only track critical resource failures
+                if (url.includes('.js') || url.includes('.css') || url.includes('/api/')) {
+                  failedRequests.push(url);
+                }
+              });
+              
+              await page.goto(PREVIEW_URL, { waitUntil: 'networkidle' });
+              await page.waitForTimeout(2000);
+              
+              expect(failedRequests.length).toBe(0);
+            });
+          });
+          EOF
+          
+          # Run the smoke tests
+          PREVIEW_URL="$PREVIEW_URL" npx playwright test smoke-test.spec.ts \
+            --reporter=list,json \
+            --output=test-results \
+            --max-failures=3
+        env:
+          PREVIEW_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/preview/pr-${{ steps.pr.outputs.number }}/
+        continue-on-error: true
+      
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+      
+      - name: Create Check Run
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const testsPassed = ${{ steps.smoke_tests.outcome == 'success' }};
+            const prNumber = '${{ steps.pr.outputs.number }}';
+            const previewUrl = 'https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/preview/pr-' + prNumber + '/';
+            
+            // Create check run
+            const checkRun = await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'Preview Smoke Tests',
+              head_sha: '${{ github.event.workflow_run.head_sha }}',
+              status: 'completed',
+              conclusion: testsPassed ? 'success' : 'failure',
+              output: {
+                title: testsPassed ? '✅ All smoke tests passed' : '❌ Smoke tests failed',
+                summary: testsPassed 
+                  ? `All critical functionality checks passed on the preview environment.\n\n**Preview URL:** ${previewUrl}`
+                  : `Some critical functionality checks failed on the preview environment.\n\n**Preview URL:** ${previewUrl}\n\nPlease review the test results and fix the issues before merging.`,
+                text: testsPassed
+                  ? '✅ Preview loads successfully\n✅ No critical console errors\n✅ Authentication page accessible\n✅ Main application renders\n✅ No network errors'
+                  : '❌ One or more smoke tests failed. Check the workflow artifacts for detailed results.'
+              }
+            });
+            
+            console.log('Check run created:', checkRun.data.html_url);
+      
+      - name: Comment on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const testsPassed = ${{ steps.smoke_tests.outcome == 'success' }};
+            const prNumber = '${{ steps.pr.outputs.number }}';
+            const previewUrl = 'https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/preview/pr-' + prNumber + '/';
+            
+            if (!prNumber) {
+              console.log('No PR number found, skipping comment');
+              return;
+            }
+            
+            const body = testsPassed 
+              ? `## ✅ Smoke Tests Passed
+            
+            All critical functionality checks passed on the preview environment!
+            
+            **Tests Run:**
+            - ✅ Preview environment loads
+            - ✅ No critical console errors
+            - ✅ Authentication page accessible
+            - ✅ Main application renders
+            - ✅ No network errors for critical resources
+            
+            **Preview URL:** ${previewUrl}`
+              : `## ❌ Smoke Tests Failed
+            
+            Some critical functionality checks failed on the preview environment.
+            
+            **Action Required:** Please review and fix the issues before merging this PR.
+            
+            **Preview URL:** ${previewUrl}
+            
+            **View Details:** Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for detailed results.`;
+            
+            // Find existing smoke test comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            
+            const botComment = comments.data.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Smoke Tests')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body
+              });
+            }
+      
+      - name: Set Status Check
+        if: always()
+        run: |
+          if [ "${{ steps.smoke_tests.outcome }}" = "success" ]; then
+            echo "✅ Smoke tests passed - PR can be merged"
+            exit 0
+          else
+            echo "❌ Smoke tests failed - PR should not be merged"
+            exit 1
+          fi
