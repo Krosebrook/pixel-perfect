@@ -113,7 +113,50 @@ Runs automatically when CI pipeline passes on `main` branch.
 - Deployment URL in workflow summary
 - Failure notifications
 
-#### 5. Deploy Storybook (`.github/workflows/deploy.yml`)
+#### 5. Production Health Check & Rollback (`.github/workflows/production-health-check.yml`)
+
+Runs automatically after production deployment completes.
+
+**Trigger:**
+- Workflow dependency on "Deploy to Production"
+- Only runs after successful deployment
+- Monitors production health continuously
+
+**Health Checks Performed:**
+- HTTP status code verification (200 OK)
+- Response time monitoring (<5s threshold)
+- Content validation (valid HTML)
+- Critical resource availability
+- Console error detection
+
+**Automatic Rollback:**
+- Triggers if any critical health check fails
+- Automatically reverts to previous stable commit
+- Rebuilds and redeploys previous version
+- Creates incident report in GitHub Issues
+- Notifies team of rollback action
+
+**Incident Management:**
+- Creates detailed incident report as GitHub Issue
+- Labels: `incident`, `production`, `auto-rollback`
+- Includes failure details and workflow links
+- Tracks rollback status and next steps
+- Provides complete audit trail
+
+**Notifications:**
+- GitHub Issue notifications
+- Workflow status updates
+- Repository activity feed
+- Optional: Slack/Email webhooks (configure in secrets)
+
+**Features:**
+- Zero-downtime rollback capability
+- Automatic incident logging
+- Team notification system
+- Comprehensive health monitoring
+- Detailed failure diagnostics
+
+#### 6. Deploy Storybook (`.github/workflows/deploy.yml`)
 
 Runs on push to `main` branch.
 
@@ -122,7 +165,7 @@ Runs on push to `main` branch.
 - Deploys to GitHub Pages
 - Available at: `https://[username].github.io/[repo]/`
 
-#### 6. Chromatic Visual Tests (`.github/workflows/chromatic.yml`)
+#### 7. Chromatic Visual Tests (`.github/workflows/chromatic.yml`)
 
 Runs on push and pull requests.
 
@@ -162,6 +205,12 @@ graph TD
     D --> H{CI Pipeline Success?}
     H -->|Yes| E[Deploy to Production]
     H -->|No| I[Skip Deployment]
+    E --> T[Run Health Checks]
+    T --> U{Health Checks Pass?}
+    U -->|Yes| V[Deployment Success]
+    U -->|No| W[Automatic Rollback]
+    W --> X[Create Incident Report]
+    W --> Y[Notify Team]
     F[Storybook Build] --> G[Deploy Storybook]
     J[Chromatic Tests]
     K[PR Opened/Updated] --> L[Deploy Preview Environment]
@@ -298,9 +347,9 @@ Every pull request automatically gets its own preview environment with automated
 - No impact on production environment
 - Enforced quality gates
 
-### Automatic Production Deployment
+### Automatic Production Deployment with Health Checks
 
-The production application deploys automatically when all tests pass on the `main` branch:
+The production application deploys automatically when all tests pass on the `main` branch, with automatic health monitoring and rollback:
 
 1. **CI Pipeline Completes**
    - All lint, type checks, unit tests, and E2E tests pass
@@ -312,12 +361,49 @@ The production application deploys automatically when all tests pass on the `mai
    - Deploys to GitHub Pages production environment
    - Creates deployment summary with URL
 
-3. **Deployment Verification**
-   - Check Actions tab for deployment status
-   - Review deployment summary for production URL
-   - Verify application is live and functional
+3. **Automatic Health Checks**
+   - Runs immediately after deployment completes
+   - Verifies:
+     - HTTP 200 status code
+     - Response time under 5 seconds
+     - Valid HTML content
+     - Critical resources available
+     - No obvious console errors
+   - Results posted to workflow summary
 
-**Note:** If CI fails, production deployment is automatically skipped with a notification.
+4. **Automatic Rollback (if health checks fail)**
+   - Detects failed health checks instantly
+   - Finds previous stable commit
+   - Rebuilds and redeploys previous version
+   - Creates incident report in GitHub Issues
+   - Notifies team automatically
+   - Provides complete audit trail
+
+5. **Incident Management**
+   - GitHub Issue created with label: `incident`, `production`, `auto-rollback`
+   - Includes:
+     - Timestamp and severity
+     - Failed commit details
+     - Health check failure reasons
+     - Rollback status
+     - Links to workflow runs
+     - Next steps for resolution
+   - Team notified via GitHub notifications
+
+6. **Deployment Verification**
+   - Check Actions tab for deployment and health check status
+   - Review deployment summary for production URL
+   - Monitor incident issues for any failures
+   - Verify application is live and healthy
+
+**Safety Features:**
+- Zero-downtime rollback
+- Automatic incident creation
+- Complete failure diagnostics
+- Team notification system
+- Full audit trail in GitHub Issues
+
+**Note:** If CI fails, production deployment is automatically skipped. If deployment succeeds but health checks fail, automatic rollback ensures production stability.
 
 ### Storybook Deployment
 
@@ -595,7 +681,37 @@ Repository admins can bypass checks when necessary:
 
 ## Rollback Procedures
 
-### Reverting a Deployment
+### Automatic Rollback (Recommended)
+
+Production deployments include automatic health monitoring with instant rollback:
+
+1. **Automatic Detection**
+   - Health checks run after every production deployment
+   - Failures trigger automatic rollback
+   - No manual intervention required
+
+2. **What Gets Rolled Back Automatically**
+   - Failed HTTP status checks
+   - Slow response times (>5s)
+   - Invalid HTML content
+   - Missing critical resources
+   - Console errors
+
+3. **Incident Response**
+   - GitHub Issue created automatically with `incident` label
+   - Team notified via GitHub notifications
+   - Complete failure details in workflow logs
+   - Previous stable version restored instantly
+
+4. **After Automatic Rollback**
+   - Review the incident issue created
+   - Check workflow logs for failure details
+   - Fix issues in a new branch
+   - Test thoroughly before merging
+
+### Manual Rollback
+
+For situations requiring manual intervention:
 
 1. **Identify problematic commit**
    ```bash
@@ -611,15 +727,41 @@ Repository admins can bypass checks when necessary:
 3. **Verify**
    - Check Actions tab
    - Wait for deployment
+   - Monitor health checks
    - Test production site
 
-### Emergency Rollback
+### Emergency Manual Rollback
 
-If immediate rollback needed:
+If automatic rollback failed or manual intervention needed:
 
-1. Go to previous successful deployment
-2. Re-run workflow
-3. Monitor deployment status
+1. **Via GitHub Actions**
+   - Go to previous successful "Deploy to Production" workflow run
+   - Click "Re-run all jobs"
+   - Monitor deployment and health check status
+
+2. **Via Git**
+   ```bash
+   # Find the last working commit
+   git log --first-parent main
+   
+   # Reset to that commit (replace <commit-hash>)
+   git reset --hard <commit-hash>
+   git push origin main --force
+   ```
+
+3. **Verify Recovery**
+   - Wait for automatic deployment
+   - Monitor health checks
+   - Create incident issue if not auto-created
+   - Document the issue and resolution
+
+### Monitoring Rollback Status
+
+Check rollback status via:
+- **GitHub Issues**: Look for issues labeled `incident`, `production`, `auto-rollback`
+- **Actions Tab**: Review "Production Health Check & Rollback" workflow runs
+- **Workflow Summaries**: Detailed health check results and rollback logs
+- **Repository Activity**: All rollback actions logged in repository feed
 
 ## Security
 
