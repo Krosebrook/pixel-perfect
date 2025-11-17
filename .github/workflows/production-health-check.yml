@@ -1,0 +1,303 @@
+name: Production Health Check & Rollback
+
+on:
+  workflow_run:
+    workflows: ["Deploy to Production"]
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: write
+  deployments: write
+  issues: write
+  pages: write
+  id-token: write
+
+jobs:
+  health-check:
+    name: Post-Deployment Health Check
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    outputs:
+      health-status: ${{ steps.health-check.outputs.status }}
+      deployment-url: ${{ steps.get-url.outputs.url }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Get Deployment URL
+        id: get-url
+        run: |
+          # Get the repository owner and name
+          REPO_OWNER="${{ github.repository_owner }}"
+          REPO_NAME="${{ github.event.repository.name }}"
+          DEPLOYMENT_URL="https://${REPO_OWNER}.github.io/${REPO_NAME}/"
+          echo "url=${DEPLOYMENT_URL}" >> $GITHUB_OUTPUT
+          echo "Deployment URL: ${DEPLOYMENT_URL}"
+      
+      - name: Wait for Deployment Propagation
+        run: sleep 30
+      
+      - name: Run Health Checks
+        id: health-check
+        run: |
+          DEPLOYMENT_URL="${{ steps.get-url.outputs.url }}"
+          HEALTH_STATUS="healthy"
+          FAILED_CHECKS=""
+          
+          echo "### 🏥 Running Health Checks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment URL:** ${DEPLOYMENT_URL}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check 1: HTTP Status Code
+          echo "Checking HTTP status..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${DEPLOYMENT_URL}" || echo "000")
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "✅ HTTP Status: ${HTTP_STATUS}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ HTTP Status: ${HTTP_STATUS} (Expected 200)" >> $GITHUB_STEP_SUMMARY
+            HEALTH_STATUS="unhealthy"
+            FAILED_CHECKS="${FAILED_CHECKS}- HTTP Status Check Failed (${HTTP_STATUS})\n"
+          fi
+          
+          # Check 2: Response Time
+          echo "Checking response time..."
+          RESPONSE_TIME=$(curl -s -o /dev/null -w "%{time_total}" "${DEPLOYMENT_URL}" || echo "999")
+          RESPONSE_MS=$(echo "$RESPONSE_TIME * 1000" | bc | cut -d. -f1)
+          if [ "$RESPONSE_MS" -lt 5000 ]; then
+            echo "✅ Response Time: ${RESPONSE_MS}ms" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Response Time: ${RESPONSE_MS}ms (Slow response)" >> $GITHUB_STEP_SUMMARY
+            FAILED_CHECKS="${FAILED_CHECKS}- Slow Response Time (${RESPONSE_MS}ms)\n"
+          fi
+          
+          # Check 3: Content Validation
+          echo "Checking page content..."
+          CONTENT=$(curl -s "${DEPLOYMENT_URL}")
+          if echo "$CONTENT" | grep -q "<!DOCTYPE html>"; then
+            echo "✅ Content: Valid HTML document" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Content: Invalid or missing HTML" >> $GITHUB_STEP_SUMMARY
+            HEALTH_STATUS="unhealthy"
+            FAILED_CHECKS="${FAILED_CHECKS}- Content Validation Failed\n"
+          fi
+          
+          # Check 4: Critical Resources
+          echo "Checking critical resources..."
+          RESOURCE_CHECK="passed"
+          for resource in "index.html" "assets/"; do
+            RESOURCE_URL="${DEPLOYMENT_URL}${resource}"
+            RESOURCE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${RESOURCE_URL}" || echo "000")
+            if [ "$RESOURCE_STATUS" != "200" ] && [ "$RESOURCE_STATUS" != "000" ]; then
+              echo "⚠️ Resource: ${resource} (${RESOURCE_STATUS})" >> $GITHUB_STEP_SUMMARY
+              RESOURCE_CHECK="warning"
+            fi
+          done
+          if [ "$RESOURCE_CHECK" = "passed" ]; then
+            echo "✅ Critical Resources: Available" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Check 5: JavaScript Errors (basic check)
+          echo "Checking for console errors..."
+          if echo "$CONTENT" | grep -qi "error\|exception\|failed to load"; then
+            echo "⚠️ Potential console errors detected in HTML" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No obvious errors in HTML content" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$HEALTH_STATUS" = "unhealthy" ]; then
+            echo "### ❌ Health Check FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Failed Checks:**" >> $GITHUB_STEP_SUMMARY
+            echo -e "${FAILED_CHECKS}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🔄 Initiating automatic rollback..." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ All Health Checks Passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Production deployment is healthy and serving correctly." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "status=${HEALTH_STATUS}" >> $GITHUB_OUTPUT
+          echo "failed_checks<<EOF" >> $GITHUB_OUTPUT
+          echo -e "${FAILED_CHECKS}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  rollback:
+    name: Automatic Rollback
+    runs-on: ubuntu-latest
+    needs: health-check
+    if: needs.health-check.outputs.health-status == 'unhealthy'
+    environment:
+      name: production
+      url: ${{ steps.rollback-deployment.outputs.page_url }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Find Previous Successful Deployment
+        id: find-previous
+        run: |
+          echo "Finding previous successful deployment..."
+          
+          # Get the current commit
+          CURRENT_COMMIT="${{ github.sha }}"
+          
+          # Find the previous commit on main branch
+          PREVIOUS_COMMIT=$(git log --first-parent main --skip 1 --max-count 1 --format="%H")
+          
+          if [ -z "$PREVIOUS_COMMIT" ]; then
+            echo "No previous commit found for rollback"
+            exit 1
+          fi
+          
+          echo "current=${CURRENT_COMMIT}" >> $GITHUB_OUTPUT
+          echo "previous=${PREVIOUS_COMMIT}" >> $GITHUB_OUTPUT
+          echo "Rolling back from ${CURRENT_COMMIT:0:7} to ${PREVIOUS_COMMIT:0:7}"
+      
+      - name: Checkout Previous Commit
+        run: |
+          git checkout ${{ steps.find-previous.outputs.previous }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build Previous Version
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+      
+      - name: Deploy to GitHub Pages
+        id: rollback-deployment
+        uses: actions/deploy-pages@v4
+      
+      - name: Rollback Summary
+        run: |
+          echo "### 🔄 Automatic Rollback Completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Reason:** Production health checks failed" >> $GITHUB_STEP_SUMMARY
+          echo "**Failed Commit:** ${{ steps.find-previous.outputs.current }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Rolled Back To:** ${{ steps.find-previous.outputs.previous }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment URL:** ${{ steps.rollback-deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "An incident report has been created automatically." >> $GITHUB_STEP_SUMMARY
+
+  create-incident:
+    name: Create Incident Report
+    runs-on: ubuntu-latest
+    needs: [health-check, rollback]
+    if: needs.health-check.outputs.health-status == 'unhealthy'
+    
+    steps:
+      - name: Create Incident Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const failedChecks = `${{ needs.health-check.outputs.failed_checks }}`;
+            const deploymentUrl = `${{ needs.health-check.outputs.deployment-url }}`;
+            const commitSha = `${{ github.sha }}`;
+            const rollbackStatus = `${{ needs.rollback.result }}`;
+            
+            const issueBody = `## 🚨 Production Deployment Failure & Automatic Rollback
+            
+            **Incident Time:** ${new Date().toISOString()}
+            **Severity:** High
+            **Status:** ${rollbackStatus === 'success' ? 'Rolled Back' : 'Rollback Failed'}
+            
+            ### Deployment Details
+            - **Failed Commit:** \`${commitSha.substring(0, 7)}\`
+            - **Deployment URL:** ${deploymentUrl}
+            - **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            ### Failed Health Checks
+            ${failedChecks || 'No specific check details available'}
+            
+            ### Actions Taken
+            ${rollbackStatus === 'success' 
+              ? '✅ Automatic rollback to previous stable version completed successfully'
+              : '❌ Automatic rollback failed - manual intervention required'}
+            
+            ### Next Steps
+            1. Review the failed deployment commit and health check results
+            2. Investigate the root cause of the health check failures
+            3. Fix the issues in a new branch
+            4. Test thoroughly before merging to main
+            5. Close this issue once resolved
+            
+            ### Related Links
+            - [Failed Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - [Commit Details](${{ github.server_url }}/${{ github.repository }}/commit/${commitSha})
+            
+            ---
+            *This incident was automatically detected and logged by the production health check system.*`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Production Deployment Failure - ${commitSha.substring(0, 7)}`,
+              body: issueBody,
+              labels: ['incident', 'production', 'auto-rollback']
+            });
+
+  notify-team:
+    name: Notify Team
+    runs-on: ubuntu-latest
+    needs: [health-check, rollback, create-incident]
+    if: always() && needs.health-check.outputs.health-status == 'unhealthy'
+    
+    steps:
+      - name: Post Status to Summary
+        run: |
+          echo "### 📢 Team Notification Sent" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Incident Report:** Created in Issues" >> $GITHUB_STEP_SUMMARY
+          echo "**Rollback Status:** ${{ needs.rollback.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Team members with repository access will be notified via:" >> $GITHUB_STEP_SUMMARY
+          echo "- GitHub Issue notification" >> $GITHUB_STEP_SUMMARY
+          echo "- Workflow status notification" >> $GITHUB_STEP_SUMMARY
+          echo "- Repository activity feed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Configure Slack/Email webhooks in repository secrets for additional notifications." >> $GITHUB_STEP_SUMMARY
+
+  success-notification:
+    name: Deployment Success
+    runs-on: ubuntu-latest
+    needs: health-check
+    if: needs.health-check.outputs.health-status == 'healthy'
+    
+    steps:
+      - name: Success Summary
+        run: |
+          echo "### ✅ Production Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All health checks passed. Production is healthy." >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment URL:** ${{ needs.health-check.outputs.deployment-url }}" >> $GITHUB_STEP_SUMMARY
