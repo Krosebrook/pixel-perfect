@@ -40,7 +40,28 @@ Runs on every push and pull request to `main` and `develop` branches.
   - Builds Storybook documentation
   - Uploads static files
 
-#### 2. Deploy Storybook (`.github/workflows/deploy.yml`)
+#### 2. Production Deployment (`.github/workflows/deploy-production.yml`)
+
+Runs automatically when CI pipeline passes on `main` branch.
+
+**Trigger:**
+- Workflow dependency on CI Pipeline
+- Only deploys if all tests pass
+- Skips deployment if CI fails
+
+**Steps:**
+- Builds production application
+- Deploys to GitHub Pages
+- Creates deployment summary
+- Notifies on CI failure
+
+**Features:**
+- Automated deployment on successful CI
+- Production environment protection
+- Deployment URL in workflow summary
+- Failure notifications
+
+#### 3. Deploy Storybook (`.github/workflows/deploy.yml`)
 
 Runs on push to `main` branch.
 
@@ -49,7 +70,7 @@ Runs on push to `main` branch.
 - Deploys to GitHub Pages
 - Available at: `https://[username].github.io/[repo]/`
 
-#### 3. Chromatic Visual Tests (`.github/workflows/chromatic.yml`)
+#### 4. Chromatic Visual Tests (`.github/workflows/chromatic.yml`)
 
 Runs on push and pull requests.
 
@@ -66,8 +87,11 @@ Configure these in GitHub repository settings under `Settings > Secrets and vari
 
 | Secret | Description | Required For |
 |--------|-------------|--------------|
-| `VITE_SUPABASE_URL` | Supabase project URL | Build, E2E tests |
-| `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key | Build, E2E tests |
+| `VITE_SUPABASE_URL` | Supabase project URL | Build, E2E tests, Production deployment |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key | Build, E2E tests, Production deployment |
+| `SUPABASE_URL` | Supabase project URL | Security tests |
+| `SUPABASE_ANON_KEY` | Supabase anonymous key | Security tests |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | Security tests |
 | `CODECOV_TOKEN` | Codecov upload token | Coverage reporting |
 | `CHROMATIC_PROJECT_TOKEN` | Chromatic project token | Visual regression |
 
@@ -80,12 +104,14 @@ Set in workflow files:
 
 ```mermaid
 graph TD
-    A[Lint & Type Check] --> D[Build]
+    A[Lint & Type Check] --> D[Build Application]
     B[Unit Tests] --> D
     C[E2E Tests]
-    D --> E[Deploy]
-    F[Storybook Build]
-    G[Chromatic]
+    D --> H{CI Pipeline Success?}
+    H -->|Yes| E[Deploy to Production]
+    H -->|No| I[Skip Deployment]
+    F[Storybook Build] --> G[Deploy Storybook]
+    J[Chromatic Tests]
 ```
 
 ## Test Coverage Requirements
@@ -166,25 +192,52 @@ npm run test:e2e:ui
 
 ## Deployment Process
 
-### Automatic Deployment
+### Automatic Production Deployment
 
-1. **Merge to Main**
-   - Triggers CI pipeline
-   - All tests must pass
-   - Build must succeed
+The production application deploys automatically when all tests pass on the `main` branch:
 
-2. **Storybook Deployment**
-   - Automatically deploys to GitHub Pages
+1. **CI Pipeline Completes**
+   - All lint, type checks, unit tests, and E2E tests pass
+   - Application build succeeds
+
+2. **Production Deployment Triggers**
+   - Automatically starts when CI workflow succeeds
+   - Builds production bundle with environment variables
+   - Deploys to GitHub Pages production environment
+   - Creates deployment summary with URL
+
+3. **Deployment Verification**
+   - Check Actions tab for deployment status
+   - Review deployment summary for production URL
+   - Verify application is live and functional
+
+**Note:** If CI fails, production deployment is automatically skipped with a notification.
+
+### Storybook Deployment
+
+Storybook deploys independently on every push to `main`:
+
+1. **Automatic Deploy**
+   - Builds Storybook documentation
+   - Deploys to GitHub Pages
    - Available within 5 minutes
    - URL: `https://[username].github.io/[repo]/`
 
 ### Manual Deployment
 
-Trigger manual deployment:
-1. Go to Actions tab
-2. Select "Deploy Storybook" workflow
-3. Click "Run workflow"
-4. Select branch and run
+Trigger manual deployments when needed:
+
+1. **Production Deployment**
+   - Go to Actions tab
+   - Select "Deploy to Production" workflow
+   - Click "Run workflow"
+   - Note: Manual runs bypass CI checks
+
+2. **Storybook Deployment**
+   - Go to Actions tab
+   - Select "Deploy Storybook" workflow
+   - Click "Run workflow"
+   - Select branch and run
 
 ## Monitoring & Alerts
 
