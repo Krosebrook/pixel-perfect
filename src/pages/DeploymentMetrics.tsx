@@ -1,12 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  BarChart,
-  Bar,
   LineChart,
   Line,
   PieChart,
@@ -19,8 +18,11 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Activity, AlertCircle, CheckCircle2, Clock, TrendingUp, XCircle } from "lucide-react";
+import { Activity, AlertCircle, CheckCircle2, Clock, Radio, TrendingUp, XCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
+import { BudgetManager } from "@/components/BudgetManager";
+import { DeploymentComparison } from "@/components/DeploymentComparison";
 
 const COLORS = {
   success: "#22c55e",
@@ -31,6 +33,8 @@ const COLORS = {
 };
 
 export default function DeploymentMetrics() {
+  const queryClient = useQueryClient();
+
   const { data: stats } = useQuery({
     queryKey: ["deployment-statistics"],
     queryFn: async () => {
@@ -82,19 +86,82 @@ export default function DeploymentMetrics() {
 
       if (error) throw error;
 
-      // Group by day
-      const grouped = data.reduce((acc: any, deployment: any) => {
+      const grouped = data.reduce((acc: Record<string, { date: string; success: number; failed: number; rolled_back: number }>, deployment) => {
         const date = new Date(deployment.started_at).toISOString().split("T")[0];
         if (!acc[date]) {
           acc[date] = { date, success: 0, failed: 0, rolled_back: 0 };
         }
-        acc[date][deployment.status] = (acc[date][deployment.status] || 0) + 1;
+        const status = deployment.status;
+        if (status === 'success' || status === 'failed' || status === 'rolled_back') {
+          acc[date][status] = acc[date][status] + 1;
+        }
         return acc;
       }, {});
 
       return Object.values(grouped);
     },
   });
+
+  // Real-time subscriptions
+  useEffect(() => {
+    const deploymentsChannel = supabase
+      .channel("deployment-updates")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "deployment_metrics" },
+        (payload) => {
+          toast.info(`New deployment started: ${payload.new.commit_sha?.substring(0, 7)}`);
+          queryClient.invalidateQueries({ queryKey: ["recent-deployments"] });
+          queryClient.invalidateQueries({ queryKey: ["deployment-statistics"] });
+          queryClient.invalidateQueries({ queryKey: ["deployment-trend"] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "deployment_metrics" },
+        (payload) => {
+          const status = payload.new.status;
+          if (status === "success") {
+            toast.success(`Deployment completed successfully`);
+          } else if (status === "failed") {
+            toast.error(`Deployment failed`);
+          } else if (status === "rolled_back") {
+            toast.warning(`Deployment rolled back`);
+          }
+          queryClient.invalidateQueries({ queryKey: ["recent-deployments"] });
+          queryClient.invalidateQueries({ queryKey: ["deployment-statistics"] });
+        }
+      )
+      .subscribe();
+
+    const incidentsChannel = supabase
+      .channel("incident-updates")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "deployment_incidents" },
+        (payload) => {
+          toast.error(`New incident detected: ${payload.new.incident_type}`);
+          queryClient.invalidateQueries({ queryKey: ["recent-incidents"] });
+          queryClient.invalidateQueries({ queryKey: ["deployment-statistics"] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "deployment_incidents" },
+        (payload) => {
+          if (payload.new.resolved_at && !payload.old?.resolved_at) {
+            toast.success(`Incident resolved`);
+          }
+          queryClient.invalidateQueries({ queryKey: ["recent-incidents"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(deploymentsChannel);
+      supabase.removeChannel(incidentsChannel);
+    };
+  }, [queryClient]);
 
   const statusDistribution = recentDeployments
     ? [
@@ -129,11 +196,17 @@ export default function DeploymentMetrics() {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Deployment Metrics</h1>
-        <p className="text-muted-foreground">
-          Track deployment health, success rates, and incident resolution over the past 30 days
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold mb-2">Deployment Metrics</h1>
+          <p className="text-muted-foreground">
+            Track deployment health, success rates, and incident resolution over the past 30 days
+          </p>
+        </div>
+        <Badge variant="outline" className="flex items-center gap-2">
+          <Radio className="h-3 w-3 text-success animate-pulse" />
+          Live
+        </Badge>
       </div>
 
       {/* Summary Cards */}
@@ -200,11 +273,12 @@ export default function DeploymentMetrics() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="deployments">Deployments</TabsTrigger>
           <TabsTrigger value="incidents">Incidents</TabsTrigger>
+          <TabsTrigger value="budget">Budget</TabsTrigger>
+          <TabsTrigger value="comparison">Comparison</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Deployment Trend */}
             <Card>
               <CardHeader>
                 <CardTitle>Deployment Trend</CardTitle>
@@ -226,7 +300,6 @@ export default function DeploymentMetrics() {
               </CardContent>
             </Card>
 
-            {/* Status Distribution */}
             <Card>
               <CardHeader>
                 <CardTitle>Status Distribution</CardTitle>
@@ -380,6 +453,14 @@ export default function DeploymentMetrics() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="budget" className="space-y-6">
+          <BudgetManager />
+        </TabsContent>
+
+        <TabsContent value="comparison" className="space-y-6">
+          <DeploymentComparison />
         </TabsContent>
       </Tabs>
     </div>

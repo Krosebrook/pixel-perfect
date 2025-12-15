@@ -24,6 +24,7 @@ jobs:
     outputs:
       health-status: ${{ steps.health-check.outputs.status }}
       deployment-url: ${{ steps.get-url.outputs.url }}
+      failed-checks: ${{ steps.health-check.outputs.failed_checks }}
     
     steps:
       - name: Checkout
@@ -32,7 +33,6 @@ jobs:
       - name: Get Deployment URL
         id: get-url
         run: |
-          # Get the repository owner and name
           REPO_OWNER="${{ github.repository_owner }}"
           REPO_NAME="${{ github.event.repository.name }}"
           DEPLOYMENT_URL="https://${REPO_OWNER}.github.io/${REPO_NAME}/"
@@ -47,7 +47,7 @@ jobs:
         run: |
           DEPLOYMENT_URL="${{ steps.get-url.outputs.url }}"
           HEALTH_STATUS="healthy"
-          FAILED_CHECKS=""
+          FAILED_CHECKS_JSON="[]"
           
           echo "### 🏥 Running Health Checks" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -63,7 +63,7 @@ jobs:
           else
             echo "❌ HTTP Status: ${HTTP_STATUS} (Expected 200)" >> $GITHUB_STEP_SUMMARY
             HEALTH_STATUS="unhealthy"
-            FAILED_CHECKS="${FAILED_CHECKS}- HTTP Status Check Failed (${HTTP_STATUS})\n"
+            FAILED_CHECKS_JSON=$(echo "$FAILED_CHECKS_JSON" | jq '. + ["HTTP Status Check Failed ('"${HTTP_STATUS}"')"]')
           fi
           
           # Check 2: Response Time
@@ -74,7 +74,7 @@ jobs:
             echo "✅ Response Time: ${RESPONSE_MS}ms" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ Response Time: ${RESPONSE_MS}ms (Slow response)" >> $GITHUB_STEP_SUMMARY
-            FAILED_CHECKS="${FAILED_CHECKS}- Slow Response Time (${RESPONSE_MS}ms)\n"
+            FAILED_CHECKS_JSON=$(echo "$FAILED_CHECKS_JSON" | jq '. + ["Slow Response Time ('"${RESPONSE_MS}"'ms)"]')
           fi
           
           # Check 3: Content Validation
@@ -85,7 +85,7 @@ jobs:
           else
             echo "❌ Content: Invalid or missing HTML" >> $GITHUB_STEP_SUMMARY
             HEALTH_STATUS="unhealthy"
-            FAILED_CHECKS="${FAILED_CHECKS}- Content Validation Failed\n"
+            FAILED_CHECKS_JSON=$(echo "$FAILED_CHECKS_JSON" | jq '. + ["Content Validation Failed"]')
           fi
           
           # Check 4: Critical Resources
@@ -103,7 +103,7 @@ jobs:
             echo "✅ Critical Resources: Available" >> $GITHUB_STEP_SUMMARY
           fi
           
-          # Check 5: JavaScript Errors (basic check)
+          # Check 5: JavaScript Errors
           echo "Checking for console errors..."
           if echo "$CONTENT" | grep -qi "error\|exception\|failed to load"; then
             echo "⚠️ Potential console errors detected in HTML" >> $GITHUB_STEP_SUMMARY
@@ -118,9 +118,6 @@ jobs:
           if [ "$HEALTH_STATUS" = "unhealthy" ]; then
             echo "### ❌ Health Check FAILED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Failed Checks:**" >> $GITHUB_STEP_SUMMARY
-            echo -e "${FAILED_CHECKS}" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
             echo "🔄 Initiating automatic rollback..." >> $GITHUB_STEP_SUMMARY
           else
             echo "### ✅ All Health Checks Passed" >> $GITHUB_STEP_SUMMARY
@@ -129,14 +126,59 @@ jobs:
           fi
           
           echo "status=${HEALTH_STATUS}" >> $GITHUB_OUTPUT
-          echo "failed_checks<<EOF" >> $GITHUB_OUTPUT
-          echo -e "${FAILED_CHECKS}" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "failed_checks=${FAILED_CHECKS_JSON}" >> $GITHUB_OUTPUT
+      
+      - name: Update Deployment Health Status
+        run: |
+          curl -X POST "${{ secrets.VITE_SUPABASE_URL }}/functions/v1/track-deployment" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -d '{
+              "action": "update_deployment",
+              "data": {
+                "id": "${{ github.event.workflow_run.id }}",
+                "health_check_status": "${{ steps.health-check.outputs.status }}"
+              }
+            }' || echo "Failed to update health status"
+
+  track-incident:
+    name: Track Incident
+    runs-on: ubuntu-latest
+    needs: health-check
+    if: needs.health-check.outputs.health-status == 'unhealthy'
+    outputs:
+      deployment-id: ${{ steps.get-deployment.outputs.id }}
+    
+    steps:
+      - name: Get Deployment ID
+        id: get-deployment
+        run: |
+          RESPONSE=$(curl -s "${{ secrets.VITE_SUPABASE_URL }}/rest/v1/deployment_metrics?workflow_run_id=eq.${{ github.event.workflow_run.id }}&select=id" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}")
+          DEPLOYMENT_ID=$(echo "$RESPONSE" | jq -r '.[0].id // empty')
+          echo "id=${DEPLOYMENT_ID}" >> $GITHUB_OUTPUT
+      
+      - name: Track Incident
+        if: steps.get-deployment.outputs.id != ''
+        run: |
+          curl -X POST "${{ secrets.VITE_SUPABASE_URL }}/functions/v1/track-deployment" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -d '{
+              "action": "track_incident",
+              "data": {
+                "deployment_id": "${{ steps.get-deployment.outputs.id }}",
+                "incident_type": "health_check_failure",
+                "severity": "high",
+                "failed_checks": ${{ needs.health-check.outputs.failed-checks }}
+              }
+            }' || echo "Failed to track incident"
 
   rollback:
     name: Automatic Rollback
     runs-on: ubuntu-latest
-    needs: health-check
+    needs: [health-check, track-incident]
     if: needs.health-check.outputs.health-status == 'unhealthy'
     environment:
       name: production
@@ -152,11 +194,7 @@ jobs:
         id: find-previous
         run: |
           echo "Finding previous successful deployment..."
-          
-          # Get the current commit
           CURRENT_COMMIT="${{ github.sha }}"
-          
-          # Find the previous commit on main branch
           PREVIOUS_COMMIT=$(git log --first-parent main --skip 1 --max-count 1 --format="%H")
           
           if [ -z "$PREVIOUS_COMMIT" ]; then
@@ -199,6 +237,19 @@ jobs:
         id: rollback-deployment
         uses: actions/deploy-pages@v4
       
+      - name: Update Deployment Status to Rolled Back
+        run: |
+          curl -X POST "${{ secrets.VITE_SUPABASE_URL }}/functions/v1/track-deployment" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -d '{
+              "action": "update_deployment",
+              "data": {
+                "id": "${{ github.event.workflow_run.id }}",
+                "status": "rolled_back"
+              }
+            }' || echo "Failed to update rollback status"
+      
       - name: Rollback Summary
         run: |
           echo "### 🔄 Automatic Rollback Completed" >> $GITHUB_STEP_SUMMARY
@@ -207,13 +258,11 @@ jobs:
           echo "**Failed Commit:** ${{ steps.find-previous.outputs.current }}" >> $GITHUB_STEP_SUMMARY
           echo "**Rolled Back To:** ${{ steps.find-previous.outputs.previous }}" >> $GITHUB_STEP_SUMMARY
           echo "**Deployment URL:** ${{ steps.rollback-deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "An incident report has been created automatically." >> $GITHUB_STEP_SUMMARY
 
   create-incident:
     name: Create Incident Report
     runs-on: ubuntu-latest
-    needs: [health-check, rollback]
+    needs: [health-check, track-incident, rollback]
     if: needs.health-check.outputs.health-status == 'unhealthy'
     
     steps:
@@ -221,7 +270,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const failedChecks = `${{ needs.health-check.outputs.failed_checks }}`;
+            const failedChecks = ${{ needs.health-check.outputs.failed-checks }};
             const deploymentUrl = `${{ needs.health-check.outputs.deployment-url }}`;
             const commitSha = `${{ github.sha }}`;
             const rollbackStatus = `${{ needs.rollback.result }}`;
@@ -238,7 +287,7 @@ jobs:
             - **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             
             ### Failed Health Checks
-            ${failedChecks || 'No specific check details available'}
+            ${failedChecks.map(c => '- ' + c).join('\n')}
             
             ### Actions Taken
             ${rollbackStatus === 'success' 
@@ -252,20 +301,39 @@ jobs:
             4. Test thoroughly before merging to main
             5. Close this issue once resolved
             
-            ### Related Links
-            - [Failed Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            - [Commit Details](${{ github.server_url }}/${{ github.repository }}/commit/${commitSha})
-            
             ---
             *This incident was automatically detected and logged by the production health check system.*`;
             
-            await github.rest.issues.create({
+            const issue = await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `🚨 Production Deployment Failure - ${commitSha.substring(0, 7)}`,
               body: issueBody,
               labels: ['incident', 'production', 'auto-rollback']
             });
+            
+            // Update incident with GitHub issue info
+            const response = await fetch(`${{ secrets.VITE_SUPABASE_URL }}/rest/v1/deployment_incidents?deployment_id=eq.${{ needs.track-incident.outputs.deployment-id }}&order=detected_at.desc&limit=1`, {
+              headers: {
+                'apikey': '${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}',
+                'Authorization': 'Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}'
+              }
+            });
+            const incidents = await response.json();
+            if (incidents.length > 0) {
+              await fetch(`${{ secrets.VITE_SUPABASE_URL }}/rest/v1/deployment_incidents?id=eq.${incidents[0].id}`, {
+                method: 'PATCH',
+                headers: {
+                  'apikey': '${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}',
+                  'Authorization': 'Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}',
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  github_issue_number: issue.data.number,
+                  github_issue_url: issue.data.html_url
+                })
+              });
+            }
 
   notify-team:
     name: Notify Team
@@ -285,8 +353,6 @@ jobs:
           echo "- GitHub Issue notification" >> $GITHUB_STEP_SUMMARY
           echo "- Workflow status notification" >> $GITHUB_STEP_SUMMARY
           echo "- Repository activity feed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Note:** Configure Slack/Email webhooks in repository secrets for additional notifications." >> $GITHUB_STEP_SUMMARY
 
   success-notification:
     name: Deployment Success

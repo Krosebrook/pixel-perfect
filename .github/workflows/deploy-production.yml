@@ -30,6 +30,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
+      - name: Track Deployment Start
+        run: |
+          curl -X POST "${{ secrets.VITE_SUPABASE_URL }}/functions/v1/track-deployment" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -d '{
+              "action": "track_deployment",
+              "data": {
+                "deployment_type": "production",
+                "commit_sha": "${{ github.sha }}",
+                "workflow_run_id": "${{ github.run_id }}",
+                "started_at": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'",
+                "status": "pending"
+              }
+            }' || echo "Failed to track deployment start"
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -40,6 +56,7 @@ jobs:
         run: npm ci
       
       - name: Build Application
+        id: build
         run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
@@ -56,6 +73,41 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      
+      - name: Track Deployment Success
+        if: success()
+        run: |
+          STARTED_AT=$(date -u -d "2 minutes ago" +"%Y-%m-%dT%H:%M:%SZ")
+          COMPLETED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          curl -X POST "${{ secrets.VITE_SUPABASE_URL }}/functions/v1/track-deployment" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -d '{
+              "action": "update_deployment",
+              "data": {
+                "id": "${{ github.run_id }}",
+                "status": "success",
+                "completed_at": "'"${COMPLETED_AT}"'",
+                "deployment_url": "${{ steps.deployment.outputs.page_url }}"
+              }
+            }' || echo "Failed to track deployment success"
+      
+      - name: Track Deployment Failure
+        if: failure()
+        run: |
+          COMPLETED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          curl -X POST "${{ secrets.VITE_SUPABASE_URL }}/functions/v1/track-deployment" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -d '{
+              "action": "update_deployment",
+              "data": {
+                "id": "${{ github.run_id }}",
+                "status": "failed",
+                "completed_at": "'"${COMPLETED_AT}"'",
+                "error_message": "Build or deployment failed"
+              }
+            }' || echo "Failed to track deployment failure"
       
       - name: Deployment Summary
         run: |
