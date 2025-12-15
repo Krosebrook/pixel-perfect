@@ -229,6 +229,54 @@ export type Database = {
         }
         Relationships: []
       }
+      deployment_changelogs: {
+        Row: {
+          commit_range: string
+          commits: Json
+          created_at: string
+          deployment_id: string | null
+          generated_at: string | null
+          id: string
+          previous_deployment_id: string | null
+          release_notes: string | null
+        }
+        Insert: {
+          commit_range: string
+          commits?: Json
+          created_at?: string
+          deployment_id?: string | null
+          generated_at?: string | null
+          id?: string
+          previous_deployment_id?: string | null
+          release_notes?: string | null
+        }
+        Update: {
+          commit_range?: string
+          commits?: Json
+          created_at?: string
+          deployment_id?: string | null
+          generated_at?: string | null
+          id?: string
+          previous_deployment_id?: string | null
+          release_notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deployment_changelogs_deployment_id_fkey"
+            columns: ["deployment_id"]
+            isOneToOne: false
+            referencedRelation: "deployment_metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deployment_changelogs_previous_deployment_id_fkey"
+            columns: ["previous_deployment_id"]
+            isOneToOne: false
+            referencedRelation: "deployment_metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deployment_incidents: {
         Row: {
           deployment_id: string
