@@ -92,6 +92,41 @@ jobs:
               }
             }' || echo "Failed to track deployment success"
       
+      - name: Get Previous Deployment SHA
+        if: success()
+        id: prev_sha
+        run: |
+          PREV_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+          echo "sha=$PREV_SHA" >> $GITHUB_OUTPUT
+      
+      - name: Get Commits for Changelog
+        if: success()
+        id: commits
+        run: |
+          if [ -n "${{ steps.prev_sha.outputs.sha }}" ]; then
+            COMMITS=$(git log --pretty=format:'{"sha":"%H","message":"%s","author":"%an","date":"%ai"}' ${{ steps.prev_sha.outputs.sha }}..${{ github.sha }} | jq -s '.')
+          else
+            COMMITS=$(git log --pretty=format:'{"sha":"%H","message":"%s","author":"%an","date":"%ai"}' -10 | jq -s '.')
+          fi
+          echo "json<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Generate Changelog
+        if: success()
+        run: |
+          curl -X POST "${{ secrets.VITE_SUPABASE_URL }}/functions/v1/generate-changelog" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -d '{
+              "deployment_id": "${{ github.run_id }}",
+              "current_sha": "${{ github.sha }}",
+              "previous_sha": "${{ steps.prev_sha.outputs.sha }}",
+              "commits": ${{ steps.commits.outputs.json }},
+              "repo_owner": "${{ github.repository_owner }}",
+              "repo_name": "${{ github.event.repository.name }}"
+            }' || echo "Failed to generate changelog"
+      
       - name: Track Deployment Failure
         if: failure()
         run: |

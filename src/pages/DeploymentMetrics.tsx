@@ -23,6 +23,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { BudgetManager } from "@/components/BudgetManager";
 import { DeploymentComparison } from "@/components/DeploymentComparison";
+import { ChangelogViewer } from "@/components/ChangelogViewer";
 
 const COLORS = {
   success: "#22c55e",
@@ -273,6 +274,7 @@ export default function DeploymentMetrics() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="deployments">Deployments</TabsTrigger>
           <TabsTrigger value="incidents">Incidents</TabsTrigger>
+          <TabsTrigger value="changelog">Changelog</TabsTrigger>
           <TabsTrigger value="budget">Budget</TabsTrigger>
           <TabsTrigger value="comparison">Comparison</TabsTrigger>
         </TabsList>
@@ -453,6 +455,10 @@ export default function DeploymentMetrics() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="changelog" className="space-y-6">
+          <ChangelogViewer />
         </TabsContent>
 
         <TabsContent value="budget" className="space-y-6">
