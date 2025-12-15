@@ -143,6 +143,92 @@ export type Database = {
           },
         ]
       }
+      deployment_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          budget_id: string | null
+          id: string
+          is_acknowledged: boolean | null
+          message: string | null
+          threshold_percentage: number
+          triggered_at: string | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          budget_id?: string | null
+          id?: string
+          is_acknowledged?: boolean | null
+          message?: string | null
+          threshold_percentage: number
+          triggered_at?: string | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          budget_id?: string | null
+          id?: string
+          is_acknowledged?: boolean | null
+          message?: string | null
+          threshold_percentage?: number
+          triggered_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deployment_alerts_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "deployment_budgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deployment_budgets: {
+        Row: {
+          alert_threshold: number | null
+          budget_type: string
+          created_at: string | null
+          current_value: number | null
+          email_notifications_enabled: boolean | null
+          id: string
+          limit_value: number
+          notification_email: string | null
+          period: string
+          period_start: string
+          updated_at: string | null
+        }
+        Insert: {
+          alert_threshold?: number | null
+          budget_type: string
+          created_at?: string | null
+          current_value?: number | null
+          email_notifications_enabled?: boolean | null
+          id?: string
+          limit_value: number
+          notification_email?: string | null
+          period: string
+          period_start?: string
+          updated_at?: string | null
+        }
+        Update: {
+          alert_threshold?: number | null
+          budget_type?: string
+          created_at?: string | null
+          current_value?: number | null
+          email_notifications_enabled?: boolean | null
+          id?: string
+          limit_value?: number
+          notification_email?: string | null
+          period?: string
+          period_start?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       deployment_incidents: {
         Row: {
           deployment_id: string
@@ -989,6 +1075,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      compare_deployment_periods: {
+        Args: {
+          period1_end: string
+          period1_start: string
+          period2_end: string
+          period2_start: string
+        }
+        Returns: {
+          change_direction: string
+          change_percentage: number
+          metric_name: string
+          period1_value: number
+          period2_value: number
+        }[]
+      }
       get_api_usage: {
         Args: {
           _environment_mode: string
