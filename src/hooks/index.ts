@@ -1,19 +1,25 @@
 /**
- * Centralized hooks exports
+ * @fileoverview Central export point for all custom hooks.
+ * Import hooks from this file for cleaner imports throughout the application.
+ * 
+ * @example
+ * import { useDeploymentData, useProfile, useBudget } from '@/hooks';
  */
 
-// Core hooks
+// Core UI hooks
 export { useToast, toast } from './use-toast';
 export { useIsMobile } from './use-mobile';
 
-// Data hooks
+// User data hooks
 export { useProfile } from './useProfile';
 export { useBudget } from './useBudget';
-export { useAnalyticsSummary, useDailySpending, useCostByEndpoint, useHourlyDistribution } from './useAnalytics';
 export { useApiUsage } from './useApiUsage';
 export { useRateLimitConfig, useRateLimitUsage } from './useRateLimits';
 
-// Deployment hooks
+// Analytics hooks
+export { useAnalyticsSummary, useDailySpending, useCostByEndpoint, useHourlyDistribution } from './useAnalytics';
+
+// Deployment metrics hooks
 export {
   useDeploymentStatistics,
   useRecentDeployments,
@@ -21,8 +27,10 @@ export {
   useDeploymentTrend,
   useDeploymentRealtimeUpdates,
   useDeploymentData,
+  type DeploymentTrendData,
 } from './useDeploymentMetrics';
 
+// Deployment budget hooks
 export {
   useDeploymentBudgets,
   useDeploymentAlerts,

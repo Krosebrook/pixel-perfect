@@ -1,15 +1,33 @@
+/**
+ * @fileoverview Component for displaying a list of deployment incidents.
+ * Shows incident details, severity, resolution status, and failed checks.
+ */
+
 import { formatDistanceToNow } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import type { DeploymentIncident } from '@/types/deployment';
 
+/**
+ * Props for IncidentList component.
+ */
 interface IncidentListProps {
+  /** Array of incidents to display */
   incidents: DeploymentIncident[] | undefined;
 }
 
 /**
- * List of recent deployment incidents with resolution status
+ * Displays a list of deployment incidents with severity, resolution status, and details.
+ * Includes expandable sections for failed checks and resolution notes.
+ * 
+ * @param props - Component props
+ * @param props.incidents - Array of incidents from useRecentIncidents hook
+ * @returns A card containing the incident list
+ * 
+ * @example
+ * const { data: incidents } = useRecentIncidents(10);
+ * <IncidentList incidents={incidents} />
  */
 export function IncidentList({ incidents }: IncidentListProps) {
   return (
@@ -22,6 +40,7 @@ export function IncidentList({ incidents }: IncidentListProps) {
         <div className="space-y-4">
           {incidents?.map((incident) => (
             <div key={incident.id} className="p-4 border rounded-lg space-y-3">
+              {/* Header with badges and timestamp */}
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
@@ -57,6 +76,8 @@ export function IncidentList({ incidents }: IncidentListProps) {
                   </a>
                 )}
               </div>
+
+              {/* Failed Checks Section */}
               {incident.failed_checks && incident.failed_checks.length > 0 && (
                 <>
                   <Separator />
@@ -70,6 +91,8 @@ export function IncidentList({ incidents }: IncidentListProps) {
                   </div>
                 </>
               )}
+
+              {/* Resolution Notes Section */}
               {incident.resolution_notes && (
                 <>
                   <Separator />

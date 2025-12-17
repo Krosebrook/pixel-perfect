@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Component for viewing deployment changelogs and release notes.
+ * Displays auto-generated release notes with commit history.
+ */
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,22 +12,41 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FileText, GitCommit, Calendar } from "lucide-react";
 import { format } from "date-fns";
 
+/**
+ * Git commit information structure.
+ */
 interface Commit {
+  /** Full commit SHA */
   sha: string;
+  /** Commit message */
   message: string;
+  /** Author name */
   author: string;
+  /** Commit date as ISO string */
   date: string;
 }
 
+/**
+ * Changelog data structure from the database.
+ */
 interface DeploymentChangelog {
+  /** Unique changelog ID */
   id: string;
+  /** Associated deployment ID */
   deployment_id: string;
+  /** Previous deployment ID for commit range */
   previous_deployment_id: string | null;
+  /** Commit range string (e.g., "abc123..def456") */
   commit_range: string;
+  /** Array of commits in this changelog */
   commits: Commit[];
+  /** Generated markdown release notes */
   release_notes: string;
+  /** When the changelog was generated */
   generated_at: string;
+  /** When the record was created */
   created_at: string;
+  /** Related deployment metrics */
   deployment_metrics?: {
     commit_sha: string;
     status: string;
@@ -30,6 +54,18 @@ interface DeploymentChangelog {
   };
 }
 
+/**
+ * Displays a scrollable list of deployment changelogs with release notes.
+ * Fetches changelog data including associated deployment information.
+ * 
+ * @returns A component showing changelog cards or appropriate loading/empty states
+ * 
+ * @example
+ * // In a tabs layout
+ * <TabsContent value="changelog">
+ *   <ChangelogViewer />
+ * </TabsContent>
+ */
 export function ChangelogViewer() {
   const { data: changelogs, isLoading } = useQuery({
     queryKey: ['deployment-changelogs'],
@@ -101,7 +137,23 @@ export function ChangelogViewer() {
   );
 }
 
-function ChangelogCard({ changelog }: { changelog: DeploymentChangelog }) {
+/**
+ * Props for ChangelogCard component.
+ */
+interface ChangelogCardProps {
+  /** The changelog data to display */
+  changelog: DeploymentChangelog;
+}
+
+/**
+ * Renders a single changelog entry as a card.
+ * Includes deployment info, release notes, and expandable commit list.
+ * 
+ * @param props - Component props
+ * @param props.changelog - The changelog data
+ * @returns A card displaying the changelog details
+ */
+function ChangelogCard({ changelog }: ChangelogCardProps) {
   const commits = Array.isArray(changelog.commits) ? changelog.commits : [];
   const deploymentDate = changelog.deployment_metrics?.started_at 
     ? format(new Date(changelog.deployment_metrics.started_at), 'MMM d, yyyy HH:mm')
@@ -167,6 +219,13 @@ function ChangelogCard({ changelog }: { changelog: DeploymentChangelog }) {
   );
 }
 
+/**
+ * Formats raw release notes text for display.
+ * Converts markdown-style headers to styled text.
+ * 
+ * @param notes - Raw release notes string
+ * @returns Formatted string for display
+ */
 function formatReleaseNotes(notes: string | null): React.ReactNode {
   if (!notes) return 'No release notes available';
   

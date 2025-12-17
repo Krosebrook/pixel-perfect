@@ -1,3 +1,18 @@
+/**
+ * @fileoverview Hooks for fetching and managing deployment metrics data.
+ * Provides real-time updates via Supabase subscriptions and efficient
+ * cache management using React Query.
+ * 
+ * @example
+ * // Using the combined hook for all deployment data
+ * const { statistics, recentDeployments, isLoading } = useDeploymentData({ daysBack: 30 });
+ * 
+ * @example
+ * // Using individual hooks for specific data
+ * const { data: stats } = useDeploymentStatistics(30);
+ * const { data: deployments } = useRecentDeployments(10);
+ */
+
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +21,14 @@ import { toast } from 'sonner';
 import type { DeploymentMetric, DeploymentIncident } from '@/types/deployment';
 
 /**
- * Hook for fetching deployment statistics
+ * Fetches aggregated deployment statistics from the database.
+ * 
+ * @param daysBack - Number of days to include in statistics (default: 30)
+ * @returns React Query result with deployment statistics
+ * 
+ * @example
+ * const { data: stats, isLoading } = useDeploymentStatistics(30);
+ * console.log(stats?.success_rate, stats?.total_deployments);
  */
 export function useDeploymentStatistics(daysBack: number = 30) {
   return useQuery({
@@ -20,7 +42,14 @@ export function useDeploymentStatistics(daysBack: number = 30) {
 }
 
 /**
- * Hook for fetching recent deployments
+ * Fetches a list of recent production deployments.
+ * 
+ * @param limit - Maximum number of deployments to fetch (default: 10)
+ * @returns React Query result with array of DeploymentMetric
+ * 
+ * @example
+ * const { data: deployments } = useRecentDeployments(5);
+ * deployments?.forEach(d => console.log(d.commit_sha, d.status));
  */
 export function useRecentDeployments(limit: number = 10) {
   return useQuery({
@@ -39,7 +68,14 @@ export function useRecentDeployments(limit: number = 10) {
 }
 
 /**
- * Hook for fetching recent incidents with deployment info
+ * Fetches recent deployment incidents with associated deployment info.
+ * 
+ * @param limit - Maximum number of incidents to fetch (default: 10)
+ * @returns React Query result with array of DeploymentIncident
+ * 
+ * @example
+ * const { data: incidents } = useRecentIncidents(10);
+ * incidents?.filter(i => !i.resolved_at).forEach(i => console.log(i.incident_type));
  */
 export function useRecentIncidents(limit: number = 10) {
   return useQuery({
@@ -56,15 +92,29 @@ export function useRecentIncidents(limit: number = 10) {
   });
 }
 
+/**
+ * Data structure for deployment trend chart visualization.
+ */
 export interface DeploymentTrendData {
+  /** Date string in ISO format (YYYY-MM-DD) */
   date: string;
+  /** Count of successful deployments */
   success: number;
+  /** Count of failed deployments */
   failed: number;
+  /** Count of rolled back deployments */
   rolled_back: number;
 }
 
 /**
- * Hook for fetching deployment trend data grouped by day
+ * Fetches deployment trend data grouped by day for chart visualization.
+ * 
+ * @param days - Number of days to include in trend (default: 30)
+ * @returns React Query result with array of DeploymentTrendData
+ * 
+ * @example
+ * const { data: trend } = useDeploymentTrend(30);
+ * // Use with recharts: <LineChart data={trend} />
  */
 export function useDeploymentTrend(days: number = 30) {
   return useQuery({
@@ -101,7 +151,19 @@ export function useDeploymentTrend(days: number = 30) {
 }
 
 /**
- * Hook for setting up real-time subscriptions for deployment updates
+ * Sets up real-time Supabase subscriptions for deployment and incident updates.
+ * Automatically invalidates relevant queries and shows toast notifications.
+ * 
+ * @remarks
+ * This hook should be used once at the dashboard level to avoid duplicate subscriptions.
+ * It handles both deployment_metrics and deployment_incidents table changes.
+ * 
+ * @example
+ * // In a dashboard component
+ * function DeploymentDashboard() {
+ *   useDeploymentRealtimeUpdates(); // Sets up subscriptions
+ *   // ... rest of component
+ * }
  */
 export function useDeploymentRealtimeUpdates() {
   const queryClient = useQueryClient();
@@ -165,9 +227,46 @@ export function useDeploymentRealtimeUpdates() {
 }
 
 /**
- * Combined hook for all deployment metrics data
+ * Options for the useDeploymentData hook.
  */
-export function useDeploymentData(options?: { daysBack?: number; limit?: number }) {
+interface UseDeploymentDataOptions {
+  /** Number of days to look back for statistics and trends (default: 30) */
+  daysBack?: number;
+  /** Maximum number of items for recent lists (default: 10) */
+  limit?: number;
+}
+
+/**
+ * Combined hook that provides all deployment metrics data with real-time updates.
+ * This is the recommended hook for dashboard views that need comprehensive data.
+ * 
+ * @param options - Configuration options for data fetching
+ * @returns Object containing all deployment data queries and loading states
+ * 
+ * @example
+ * function DeploymentMetricsPage() {
+ *   const {
+ *     statistics,
+ *     recentDeployments,
+ *     recentIncidents,
+ *     trend,
+ *     isLoading,
+ *     isError,
+ *   } = useDeploymentData({ daysBack: 30, limit: 10 });
+ * 
+ *   if (isLoading) return <LoadingSpinner />;
+ *   if (isError) return <ErrorMessage />;
+ * 
+ *   return (
+ *     <div>
+ *       <StatsCards data={statistics.data} />
+ *       <TrendChart data={trend.data} />
+ *       <DeploymentList data={recentDeployments.data} />
+ *     </div>
+ *   );
+ * }
+ */
+export function useDeploymentData(options?: UseDeploymentDataOptions) {
   const { daysBack = 30, limit = 10 } = options || {};
 
   const statistics = useDeploymentStatistics(daysBack);
@@ -179,11 +278,17 @@ export function useDeploymentData(options?: { daysBack?: number; limit?: number 
   useDeploymentRealtimeUpdates();
 
   return {
+    /** Aggregated deployment statistics */
     statistics,
+    /** List of recent deployments */
     recentDeployments,
+    /** List of recent incidents */
     recentIncidents,
+    /** Deployment trend data for charts */
     trend,
+    /** True if any query is loading */
     isLoading: statistics.isLoading || recentDeployments.isLoading || recentIncidents.isLoading || trend.isLoading,
+    /** True if any query has an error */
     isError: statistics.isError || recentDeployments.isError || recentIncidents.isError || trend.isError,
   };
 }

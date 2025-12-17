@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Chart components for visualizing deployment metrics.
+ * Uses recharts library for responsive, interactive charts.
+ */
+
 import {
   LineChart,
   Line,
@@ -15,21 +20,40 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import type { DeploymentTrendData } from '@/hooks/useDeploymentMetrics';
 import type { DeploymentMetric } from '@/types/deployment';
 
-/** Chart color scheme using semantic tokens where possible */
+/**
+ * Color scheme for deployment status visualization.
+ * Uses semantic colors for consistent meaning across charts.
+ */
 export const DEPLOYMENT_COLORS = {
+  /** Green - successful deployments */
   success: '#22c55e',
+  /** Red - failed deployments */
   failed: '#ef4444',
+  /** Amber - rolled back deployments */
   rolled_back: '#f59e0b',
 } as const;
 
+/**
+ * Data structure for status distribution pie chart.
+ */
 interface StatusDistributionData {
+  /** Display name for the status */
   name: string;
+  /** Count of deployments with this status */
   value: number;
+  /** Hex color for the pie slice */
   color: string;
 }
 
 /**
- * Calculates status distribution from deployments for pie chart
+ * Calculates status distribution from deployment data for pie chart visualization.
+ * 
+ * @param deployments - Array of deployment metrics
+ * @returns Array of status distribution data for pie chart
+ * 
+ * @example
+ * const distribution = calculateStatusDistribution(deployments);
+ * // Returns: [{ name: 'Success', value: 10, color: '#22c55e' }, ...]
  */
 export function calculateStatusDistribution(deployments: DeploymentMetric[] | undefined): StatusDistributionData[] {
   if (!deployments) return [];
@@ -41,12 +65,25 @@ export function calculateStatusDistribution(deployments: DeploymentMetric[] | un
   ];
 }
 
+/**
+ * Props for DeploymentTrendChart component.
+ */
 interface DeploymentTrendChartProps {
+  /** Trend data grouped by date */
   data: DeploymentTrendData[] | undefined;
 }
 
 /**
- * Line chart showing deployment trends over time
+ * Line chart showing deployment trends over time.
+ * Displays success, failed, and rolled back counts per day.
+ * 
+ * @param props - Component props
+ * @param props.data - Array of daily deployment counts
+ * @returns A card containing a responsive line chart
+ * 
+ * @example
+ * const { data: trend } = useDeploymentTrend(30);
+ * <DeploymentTrendChart data={trend} />
  */
 export function DeploymentTrendChart({ data }: DeploymentTrendChartProps) {
   return (
@@ -73,12 +110,25 @@ export function DeploymentTrendChart({ data }: DeploymentTrendChartProps) {
   );
 }
 
+/**
+ * Props for StatusDistributionChart component.
+ */
 interface StatusDistributionChartProps {
+  /** Array of deployment metrics to analyze */
   deployments: DeploymentMetric[] | undefined;
 }
 
 /**
- * Pie chart showing status distribution of recent deployments
+ * Pie chart showing the distribution of deployment statuses.
+ * Provides a quick overview of deployment health.
+ * 
+ * @param props - Component props
+ * @param props.deployments - Array of deployments to calculate distribution from
+ * @returns A card containing a responsive pie chart
+ * 
+ * @example
+ * const { data: deployments } = useRecentDeployments(50);
+ * <StatusDistributionChart deployments={deployments} />
  */
 export function StatusDistributionChart({ deployments }: StatusDistributionChartProps) {
   const data = calculateStatusDistribution(deployments);
