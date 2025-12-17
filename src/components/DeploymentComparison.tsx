@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Component for comparing deployment metrics between two time periods.
+ * Provides visual comparison through charts and metric cards.
+ */
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +15,22 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { format, subDays, subWeeks } from "date-fns";
 import type { PeriodComparison } from "@/types/deployment";
 
+/**
+ * Metrics where an increase is considered negative (bad).
+ */
+const BAD_WHEN_UP_METRICS = ['Rollbacks', 'Total Incidents', 'Avg Duration (s)', 'Avg Resolution (min)'];
+
+/**
+ * Interactive comparison tool for deployment metrics across time periods.
+ * Features date range selectors, metric cards, bar chart visualization,
+ * and an overall performance summary.
+ * 
+ * @returns A comprehensive comparison interface with multiple visualization types
+ * 
+ * @example
+ * // In a deployment analytics page
+ * <DeploymentComparison />
+ */
 export function DeploymentComparison() {
   const [period1, setPeriod1] = useState({
     start: format(subWeeks(new Date(), 2), 'yyyy-MM-dd'),
@@ -27,6 +48,10 @@ export function DeploymentComparison() {
     period2.end
   );
 
+  /**
+   * Sets predefined date ranges for quick comparison.
+   * @param range - 'week' for last 2 weeks, 'month' for last 2 months
+   */
   const setQuickRange = (range: 'week' | 'month') => {
     const now = new Date();
     if (range === 'week') {
@@ -38,6 +63,10 @@ export function DeploymentComparison() {
     }
   };
 
+  /**
+   * Returns the appropriate directional icon for a change.
+   * @param direction - 'up', 'down', or 'same'
+   */
   const getChangeIcon = (direction: string) => {
     switch (direction) {
       case 'up':
@@ -49,11 +78,15 @@ export function DeploymentComparison() {
     }
   };
 
+  /**
+   * Returns the appropriate color class for a metric change.
+   * Accounts for metrics where increases are bad (like rollbacks).
+   * @param metric - The metric name
+   * @param direction - 'up', 'down', or 'same'
+   */
   const getChangeColor = (metric: string, direction: string) => {
-    // For some metrics, "up" is bad (rollbacks, incidents, duration)
-    const badWhenUp = ['Rollbacks', 'Total Incidents', 'Avg Duration (s)', 'Avg Resolution (min)'];
     if (direction === 'same') return 'text-muted-foreground';
-    if (badWhenUp.includes(metric)) {
+    if (BAD_WHEN_UP_METRICS.includes(metric)) {
       return direction === 'up' ? 'text-destructive' : 'text-success';
     }
     return direction === 'up' ? 'text-success' : 'text-destructive';
@@ -84,6 +117,7 @@ export function DeploymentComparison() {
           </div>
 
           <div className="grid grid-cols-2 gap-6">
+            {/* Period 1 (Baseline) */}
             <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
               <h4 className="font-medium flex items-center gap-2">
                 <Badge variant="secondary">Period 1</Badge>
@@ -109,6 +143,7 @@ export function DeploymentComparison() {
               </div>
             </div>
 
+            {/* Period 2 (Comparison) */}
             <div className="space-y-3 p-4 border rounded-lg bg-primary/5">
               <h4 className="font-medium flex items-center gap-2">
                 <Badge>Period 2</Badge>
@@ -146,7 +181,7 @@ export function DeploymentComparison() {
         </Card>
       ) : comparison && comparison.length > 0 ? (
         <>
-          {/* Metric Cards */}
+          {/* Metric Cards Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {comparison.map((metric) => (
               <Card key={metric.metric_name}>
@@ -171,7 +206,7 @@ export function DeploymentComparison() {
             ))}
           </div>
 
-          {/* Chart */}
+          {/* Bar Chart */}
           <Card>
             <CardHeader>
               <CardTitle>Visual Comparison</CardTitle>
@@ -191,7 +226,7 @@ export function DeploymentComparison() {
             </CardContent>
           </Card>
 
-          {/* Summary */}
+          {/* Performance Summary */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -218,8 +253,8 @@ export function DeploymentComparison() {
                 {comparison.map((metric) => {
                   if (metric.change_direction === 'same') return null;
                   const isGood = 
-                    (metric.change_direction === 'up' && !['Rollbacks', 'Total Incidents', 'Avg Duration (s)', 'Avg Resolution (min)'].includes(metric.metric_name)) ||
-                    (metric.change_direction === 'down' && ['Rollbacks', 'Total Incidents', 'Avg Duration (s)', 'Avg Resolution (min)'].includes(metric.metric_name));
+                    (metric.change_direction === 'up' && !BAD_WHEN_UP_METRICS.includes(metric.metric_name)) ||
+                    (metric.change_direction === 'down' && BAD_WHEN_UP_METRICS.includes(metric.metric_name));
                   
                   return (
                     <li key={metric.metric_name} className="flex items-center gap-2">

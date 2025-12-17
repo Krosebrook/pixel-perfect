@@ -1,15 +1,33 @@
+/**
+ * @fileoverview Component for displaying a list of recent deployments.
+ * Shows deployment status, commit info, timing, and links to deployment URLs.
+ */
+
 import { formatDistanceToNow } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DeploymentStatusIcon, DeploymentStatusBadge } from './DeploymentStatusIcon';
 import type { DeploymentMetric } from '@/types/deployment';
 
+/**
+ * Props for DeploymentList component.
+ */
 interface DeploymentListProps {
+  /** Array of deployment metrics to display */
   deployments: DeploymentMetric[] | undefined;
 }
 
 /**
- * List of recent deployments with status and metadata
+ * Displays a scrollable list of recent deployments with status and metadata.
+ * Each deployment shows commit SHA, status badges, timing info, and optional view link.
+ * 
+ * @param props - Component props
+ * @param props.deployments - Array of deployments from useRecentDeployments hook
+ * @returns A card containing the deployment list
+ * 
+ * @example
+ * const { data: deployments } = useRecentDeployments(10);
+ * <DeploymentList deployments={deployments} />
  */
 export function DeploymentList({ deployments }: DeploymentListProps) {
   return (

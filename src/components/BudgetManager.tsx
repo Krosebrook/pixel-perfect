@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Component for managing deployment budgets and alerts.
+ * Allows creating, viewing, and deleting budgets with progress tracking.
+ */
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,8 +15,30 @@ import { Switch } from "@/components/ui/switch";
 import { AlertCircle, Bell, Check, Plus, Trash2 } from "lucide-react";
 import { useDeploymentBudgets, useDeploymentAlerts, useCreateBudget, useDeleteBudget, useAcknowledgeAlert } from "@/hooks/useDeploymentBudget";
 import { formatDistanceToNow } from "date-fns";
-import type { DeploymentBudget, DeploymentAlert } from "@/types/deployment";
 
+/**
+ * Default form values for creating a new budget.
+ */
+const DEFAULT_FORM_DATA = {
+  budget_type: 'deployment_count' as const,
+  period: 'daily' as const,
+  limit_value: 10,
+  alert_threshold: 0.8,
+  email_notifications_enabled: true,
+  notification_email: '',
+};
+
+/**
+ * Comprehensive budget management interface.
+ * Displays active alerts, existing budgets with progress bars,
+ * and a form for creating new budgets.
+ * 
+ * @returns A component with alerts section, budget list, and creation form
+ * 
+ * @example
+ * // In a settings or dashboard page
+ * <BudgetManager />
+ */
 export function BudgetManager() {
   const { data: budgets } = useDeploymentBudgets();
   const { data: alerts } = useDeploymentAlerts(false);
@@ -20,31 +47,25 @@ export function BudgetManager() {
   const acknowledgeAlert = useAcknowledgeAlert();
 
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    budget_type: 'deployment_count' as const,
-    period: 'daily' as const,
-    limit_value: 10,
-    alert_threshold: 0.8,
-    email_notifications_enabled: true,
-    notification_email: '',
-  });
+  const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
 
+  /**
+   * Handles budget creation form submission.
+   */
   const handleSubmit = () => {
     createBudget.mutate({
       ...formData,
       period_start: new Date().toISOString(),
     });
     setShowForm(false);
-    setFormData({
-      budget_type: 'deployment_count',
-      period: 'daily',
-      limit_value: 10,
-      alert_threshold: 0.8,
-      email_notifications_enabled: true,
-      notification_email: '',
-    });
+    setFormData(DEFAULT_FORM_DATA);
   };
 
+  /**
+   * Returns the appropriate progress bar color based on usage ratio.
+   * @param current - Current usage value
+   * @param limit - Maximum limit value
+   */
   const getProgressColor = (current: number, limit: number) => {
     const ratio = current / limit;
     if (ratio >= 1) return 'bg-destructive';
@@ -52,6 +73,10 @@ export function BudgetManager() {
     return 'bg-success';
   };
 
+  /**
+   * Returns the appropriate badge for an alert type.
+   * @param alertType - The type of alert ('exceeded' | 'critical' | 'warning')
+   */
   const getAlertBadge = (alertType: string) => {
     switch (alertType) {
       case 'exceeded':
@@ -65,7 +90,7 @@ export function BudgetManager() {
 
   return (
     <div className="space-y-6">
-      {/* Active Alerts */}
+      {/* Active Alerts Section */}
       {alerts && alerts.length > 0 && (
         <Card className="border-destructive">
           <CardHeader className="pb-3">
@@ -100,7 +125,7 @@ export function BudgetManager() {
         </Card>
       )}
 
-      {/* Budget List */}
+      {/* Budget List Card */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -115,7 +140,7 @@ export function BudgetManager() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Create Form */}
+          {/* Create Budget Form */}
           {showForm && (
             <div className="p-4 border rounded-lg space-y-4 bg-muted/30">
               <div className="grid grid-cols-2 gap-4">
@@ -123,7 +148,7 @@ export function BudgetManager() {
                   <Label>Budget Type</Label>
                   <Select
                     value={formData.budget_type}
-                    onValueChange={(v) => setFormData({ ...formData, budget_type: v as any })}
+                    onValueChange={(v) => setFormData({ ...formData, budget_type: v as typeof formData.budget_type })}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -138,7 +163,7 @@ export function BudgetManager() {
                   <Label>Period</Label>
                   <Select
                     value={formData.period}
-                    onValueChange={(v) => setFormData({ ...formData, period: v as any })}
+                    onValueChange={(v) => setFormData({ ...formData, period: v as typeof formData.period })}
                   >
                     <SelectTrigger>
                       <SelectValue />

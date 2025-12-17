@@ -1,5 +1,13 @@
 /**
- * Deployment components barrel export
+ * @fileoverview Barrel export for deployment-related components.
+ * Import components from this file for cleaner imports.
+ * 
+ * @example
+ * import {
+ *   DeploymentStatusIcon,
+ *   DeploymentSummaryCards,
+ *   DeploymentTrendChart,
+ * } from '@/components/deployment';
  */
 
 export { DeploymentStatusIcon, DeploymentStatusBadge } from './DeploymentStatusIcon';
