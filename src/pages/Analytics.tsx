@@ -45,6 +45,7 @@ import {
 } from '@/hooks/useAnalytics';
 import { CHART_COLORS, TIME_RANGES, TIME_RANGE_LABELS } from '@/lib/constants';
 import { formatCurrency, formatNumber, formatPercentage, formatEndpointName } from '@/lib/formatters';
+import { CostOptimizationPanel } from '@/components/CostOptimizationPanel';
 
 export default function Analytics() {
   const { user } = useAuth();
@@ -172,6 +173,7 @@ export default function Analytics() {
             <TabsTrigger value="calls">API Calls</TabsTrigger>
             <TabsTrigger value="breakdown">Cost Breakdown</TabsTrigger>
             <TabsTrigger value="patterns">Usage Patterns</TabsTrigger>
+            <TabsTrigger value="optimization">AI Optimization</TabsTrigger>
           </TabsList>
 
           <TabsContent value="spending" className="space-y-4">
@@ -376,6 +378,10 @@ export default function Analytics() {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="optimization" className="space-y-4">
+            <CostOptimizationPanel />
           </TabsContent>
         </Tabs>
       </div>
