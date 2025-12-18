@@ -13,6 +13,7 @@ import { TwoFactorSetup } from '@/components/TwoFactorSetup';
 import { AccountActivityLog } from '@/components/AccountActivityLog';
 import { SessionManager } from '@/components/SessionManager';
 import { DeviceManager } from '@/components/DeviceManager';
+import { SessionTimeoutSettings } from '@/components/SessionTimeoutSettings';
 import { useProfile } from '@/hooks/useProfile';
 import { useBudget, useUpdateBudget } from '@/hooks/useBudget';
 import { DEFAULT_ALERT_THRESHOLD } from '@/lib/constants';
@@ -109,6 +110,9 @@ export default function Settings() {
 
           {/* Two-Factor Authentication */}
           <TwoFactorSetup />
+
+          {/* Session Timeout Settings */}
+          <SessionTimeoutSettings />
 
           {/* Session Manager */}
           <SessionManager />
