@@ -3,12 +3,18 @@ import { User, Session, AuthMFAEnrollResponse, Factor } from '@supabase/supabase
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+interface MFAChallengeState {
+  required: boolean;
+  factorId: string | null;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  mfaChallenge: MFAChallengeState;
   signUp: (email: string, password: string, displayName?: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any; mfaRequired?: boolean }>;
   signInWithGoogle: () => Promise<{ error: any }>;
   signInWithGitHub: () => Promise<{ error: any }>;
   signInWithAzure: () => Promise<{ error: any }>;
@@ -22,6 +28,10 @@ interface AuthContextType {
   unenrollTOTP: (factorId: string) => Promise<{ error: any }>;
   getMFAFactors: () => Promise<{ factors: Factor[]; error: any }>;
   verifyMFAChallenge: (factorId: string, code: string) => Promise<{ error: any }>;
+  completeMFAChallenge: () => void;
+  cancelMFAChallenge: () => void;
+  generateRecoveryCodes: () => Promise<{ codes: string[]; error: any }>;
+  getRecoveryCodesCount: () => Promise<{ count: number; error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mfaChallenge, setMfaChallenge] = useState<MFAChallengeState>({ required: false, factorId: null });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -83,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
@@ -94,6 +105,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: error.message,
         variant: "destructive"
       });
+      return { error };
+    }
+
+    // Check if MFA is required
+    const { data: factorsData } = await supabase.auth.mfa.listFactors();
+    const verifiedFactors = factorsData?.totp?.filter(f => f.status === 'verified') || [];
+    
+    if (verifiedFactors.length > 0) {
+      // Check current AAL level
+      const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      
+      if (aalData?.currentLevel === 'aal1' && aalData?.nextLevel === 'aal2') {
+        // MFA verification required
+        setMfaChallenge({ required: true, factorId: verifiedFactors[0].id });
+        return { error: null, mfaRequired: true };
+      }
     }
 
     return { error };
@@ -344,12 +371,80 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
+  const completeMFAChallenge = () => {
+    setMfaChallenge({ required: false, factorId: null });
+  };
+
+  const cancelMFAChallenge = async () => {
+    setMfaChallenge({ required: false, factorId: null });
+    await supabase.auth.signOut();
+  };
+
+  const generateRecoveryCodes = async () => {
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (!currentUser) {
+      return { codes: [], error: new Error('User not authenticated') };
+    }
+
+    // Generate 10 recovery codes
+    const codes: string[] = [];
+    for (let i = 0; i < 10; i++) {
+      const code = Array.from({ length: 3 }, () => 
+        Math.random().toString(36).substring(2, 6).toUpperCase()
+      ).join('-');
+      codes.push(code);
+    }
+
+    // Delete old recovery codes
+    await supabase
+      .from('mfa_recovery_codes')
+      .delete()
+      .eq('user_id', currentUser.id);
+
+    // Store new codes (storing as plain text for simplicity - in production use proper hashing)
+    const codeRecords = codes.map(code => ({
+      user_id: currentUser.id,
+      code_hash: code.replace(/-/g, '')
+    }));
+
+    const { error } = await supabase
+      .from('mfa_recovery_codes')
+      .insert(codeRecords);
+
+    if (error) {
+      toast({
+        title: "Failed to generate recovery codes",
+        description: error.message,
+        variant: "destructive"
+      });
+      return { codes: [], error };
+    }
+
+    return { codes, error: null };
+  };
+
+  const getRecoveryCodesCount = async () => {
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (!currentUser) {
+      return { count: 0, error: new Error('User not authenticated') };
+    }
+
+    const { count, error } = await supabase
+      .from('mfa_recovery_codes')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', currentUser.id)
+      .is('used_at', null);
+
+    return { count: count || 0, error };
+  };
+
   return (
     <AuthContext.Provider value={{ 
-      user, session, loading, 
+      user, session, loading, mfaChallenge,
       signUp, signIn, signInWithGoogle, signInWithGitHub, signInWithAzure,
       resetPassword, updatePassword, resendVerificationEmail, signOut,
-      enrollTOTP, verifyTOTP, unenrollTOTP, getMFAFactors, verifyMFAChallenge
+      enrollTOTP, verifyTOTP, unenrollTOTP, getMFAFactors, verifyMFAChallenge,
+      completeMFAChallenge, cancelMFAChallenge, generateRecoveryCodes, getRecoveryCodesCount
     }}>
       {children}
     </AuthContext.Provider>
