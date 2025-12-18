@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 
-// reCAPTCHA site key from environment (publishable key)
+// reCAPTCHA site key from environment (publishable key - safe for frontend)
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
 
 interface ReCaptchaProps {
