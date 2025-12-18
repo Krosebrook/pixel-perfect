@@ -3,11 +3,12 @@
  * Supports both sign-in and sign-up flows with input validation.
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertCircle, CheckCircle, Github, Mail, AlertTriangle } from 'lucide-react';
 import { STORAGE_KEYS } from '@/lib/constants';
+import { ReCaptcha, resetReCaptcha } from '@/components/ReCaptcha';
 
 // Validation schemas
 const emailSchema = z.string()
@@ -69,7 +71,15 @@ export function AuthForm() {
   const [signInData, setSignInData] = useState({ email: '', password: '' });
   const [signUpData, setSignUpData] = useState({ email: '', password: '', displayName: '' });
   const [rememberDevice, setRememberDevice] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
+  const handleRecaptchaVerify = useCallback((token: string) => {
+    setRecaptchaToken(token);
+  }, []);
+
+  const handleRecaptchaExpire = useCallback(() => {
+    setRecaptchaToken(null);
+  }, []);
   const handleResendVerification = async () => {
     if (!emailNotVerified) return;
     setResendingVerification(true);
@@ -116,6 +126,12 @@ export function AuthForm() {
       return;
     }
 
+    // Check reCAPTCHA
+    if (!recaptchaToken) {
+      setGeneralError('Please complete the reCAPTCHA verification.');
+      return;
+    }
+
     setIsLoading(true);
     
     // Store remember device preference before sign in
@@ -153,6 +169,12 @@ export function AuthForm() {
       return;
     }
 
+    // Check reCAPTCHA
+    if (!recaptchaToken) {
+      setGeneralError('Please complete the reCAPTCHA verification.');
+      return;
+    }
+
     setIsLoading(true);
     const { error } = await signUp(
       signUpData.email.trim(), 
@@ -178,6 +200,8 @@ export function AuthForm() {
     setSignUpErrors({});
     setGeneralError(null);
     setEmailNotVerified(null);
+    setRecaptchaToken(null);
+    resetReCaptcha();
   };
 
   return (
@@ -241,9 +265,8 @@ export function AuthForm() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signin-password">Password</Label>
-                  <Input
+                  <PasswordInput
                     id="signin-password"
-                    type="password"
                     value={signInData.password}
                     onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
                     aria-invalid={!!signInErrors.password}
@@ -280,7 +303,13 @@ export function AuthForm() {
                     Forgot password?
                   </button>
                 </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
+
+                <ReCaptcha
+                  onVerify={handleRecaptchaVerify}
+                  onExpire={handleRecaptchaExpire}
+                />
+
+              <Button type="submit" className="w-full" disabled={isLoading || !recaptchaToken}>
                   {isLoading ? 'Signing in...' : 'Sign In'}
                 </Button>
                 
@@ -402,9 +431,8 @@ export function AuthForm() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Password</Label>
-                  <Input
+                  <PasswordInput
                     id="signup-password"
-                    type="password"
                     value={signUpData.password}
                     onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
                     aria-invalid={!!signUpErrors.password}
@@ -419,7 +447,13 @@ export function AuthForm() {
                     Must be 8+ characters with uppercase, lowercase, and a number.
                   </p>
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
+
+                <ReCaptcha
+                  onVerify={handleRecaptchaVerify}
+                  onExpire={handleRecaptchaExpire}
+                />
+
+                <Button type="submit" className="w-full" disabled={isLoading || !recaptchaToken}>
                   {isLoading ? 'Creating account...' : 'Sign Up'}
                 </Button>
                 
