@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
+import { SecurityAuditLog } from '@/components/SecurityAuditLog';
 
 export default function SecurityDashboard() {
   const { user } = useAuth();
@@ -231,6 +232,8 @@ export default function SecurityDashboard() {
           </ul>
         </CardContent>
       </Card>
+
+      <SecurityAuditLog />
     </div>
   );
 }
