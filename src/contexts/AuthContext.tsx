@@ -10,8 +10,10 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithGoogle: () => Promise<{ error: any }>;
+  signInWithGitHub: () => Promise<{ error: any }>;
   resetPassword: (email: string) => Promise<{ error: any }>;
   updatePassword: (newPassword: string) => Promise<{ error: any }>;
+  resendVerificationEmail: (email: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -119,6 +121,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
+  const signInWithGitHub = async () => {
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: redirectUrl
+      }
+    });
+
+    if (error) {
+      toast({
+        title: "GitHub sign in failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+
+    return { error };
+  };
+
   const resetPassword = async (email: string) => {
     const redirectUrl = `${window.location.origin}/reset-password`;
     
@@ -163,8 +186,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
+  const resendVerificationEmail = async (email: string) => {
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: redirectUrl
+      }
+    });
+
+    if (error) {
+      toast({
+        title: "Failed to resend verification",
+        description: error.message,
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Verification email sent",
+        description: "Please check your inbox for the verification link."
+      });
+    }
+
+    return { error };
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signInWithGoogle, resetPassword, updatePassword, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signInWithGoogle, signInWithGitHub, resetPassword, updatePassword, resendVerificationEmail, signOut }}>
       {children}
     </AuthContext.Provider>
   );
