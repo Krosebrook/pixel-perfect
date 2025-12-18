@@ -10,6 +10,8 @@ import { Switch } from '@/components/ui/switch';
 import { DollarSign, Bell, Shield } from 'lucide-react';
 import { RateLimitMonitor } from '@/components/RateLimitMonitor';
 import { TwoFactorSetup } from '@/components/TwoFactorSetup';
+import { AccountActivityLog } from '@/components/AccountActivityLog';
+import { SessionManager } from '@/components/SessionManager';
 import { useProfile } from '@/hooks/useProfile';
 import { useBudget, useUpdateBudget } from '@/hooks/useBudget';
 import { DEFAULT_ALERT_THRESHOLD } from '@/lib/constants';
@@ -106,6 +108,12 @@ export default function Settings() {
 
           {/* Two-Factor Authentication */}
           <TwoFactorSetup />
+
+          {/* Session Manager */}
+          <SessionManager />
+
+          {/* Account Activity Log */}
+          <AccountActivityLog />
 
           {/* Budget Configuration */}
           <Card>
