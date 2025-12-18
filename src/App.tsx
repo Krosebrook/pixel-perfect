@@ -24,6 +24,7 @@ import Teams from "./pages/Teams";
 import ApiUsage from "./pages/ApiUsage";
 import ApiDocs from "./pages/ApiDocs";
 import SecurityDashboard from "./pages/SecurityDashboard";
+import SecurityAuditLog from "./pages/SecurityAuditLog";
 import Analytics from "./pages/Analytics";
 import ApiKeys from "./pages/ApiKeys";
 import Settings from "./pages/Settings";
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/api-usage" element={<ProtectedRoute><ApiUsage /></ProtectedRoute>} />
             <Route path="/api-docs" element={<ProtectedRoute><ApiDocs /></ProtectedRoute>} />
             <Route path="/security" element={<ProtectedRoute><SecurityDashboard /></ProtectedRoute>} />
+            <Route path="/security/audit-log" element={<ProtectedRoute><SecurityAuditLog /></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
             <Route path="/api-keys" element={<ProtectedRoute><ApiKeys /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

@@ -36,48 +36,84 @@ Deno.serve(async (req) => {
     const userAgent = req.headers.get('user-agent') || 'unknown';
 
     if (action === 'check') {
-      // Check if account is locked
-      const { data, error } = await supabase.rpc('check_login_lockout', {
+      // Check account-level lockout
+      const { data: accountData, error: accountError } = await supabase.rpc('check_login_lockout', {
         _email: email.toLowerCase(),
         _max_attempts: 5,
         _lockout_minutes: 15
       });
 
-      if (error) {
-        console.error('Error checking lockout:', error);
-        return new Response(
-          JSON.stringify({ error: 'Failed to check login status' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (accountError) {
+        console.error('Error checking account lockout:', accountError);
       }
 
-      const result = data?.[0] || { is_locked: false, failed_attempts: 0, lockout_remaining_seconds: 0 };
-      
-      console.log(`Login check for ${email}: locked=${result.is_locked}, attempts=${result.failed_attempts}`);
+      const accountResult = accountData?.[0] || { is_locked: false, failed_attempts: 0, lockout_remaining_seconds: 0 };
+
+      // Check IP-level rate limit
+      const { data: ipData, error: ipError } = await supabase.rpc('check_ip_rate_limit', {
+        _ip_address: ipAddress,
+        _max_attempts: 20,
+        _window_minutes: 60,
+        _block_minutes: 30
+      });
+
+      if (ipError) {
+        console.error('Error checking IP rate limit:', ipError);
+      }
+
+      const ipResult = ipData?.[0] || { is_blocked: false, failed_attempts: 0, block_remaining_seconds: 0 };
+
+      // If either is blocked, return blocked status
+      const isLocked = accountResult.is_locked || ipResult.is_blocked;
+      const lockoutSeconds = Math.max(
+        accountResult.lockout_remaining_seconds || 0,
+        ipResult.block_remaining_seconds || 0
+      );
+
+      console.log(`Login check for ${email} from ${ipAddress}: account_locked=${accountResult.is_locked}, ip_blocked=${ipResult.is_blocked}`);
 
       return new Response(
         JSON.stringify({
-          isLocked: result.is_locked,
-          failedAttempts: result.failed_attempts,
-          lockoutRemainingSeconds: result.lockout_remaining_seconds,
-          maxAttempts: 5
+          isLocked,
+          failedAttempts: accountResult.failed_attempts,
+          ipFailedAttempts: ipResult.failed_attempts,
+          lockoutRemainingSeconds: lockoutSeconds,
+          maxAttempts: 5,
+          ipBlocked: ipResult.is_blocked,
+          accountLocked: accountResult.is_locked
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (action === 'record_failure') {
-      // Record failed attempt
-      const { error } = await supabase.rpc('record_login_attempt', {
+      // Record failed attempt for account
+      const { error: recordError } = await supabase.rpc('record_login_attempt', {
         _email: email.toLowerCase(),
         _ip_address: ipAddress,
         _user_agent: userAgent,
         _success: false
       });
 
-      if (error) {
-        console.error('Error recording failed attempt:', error);
+      if (recordError) {
+        console.error('Error recording failed attempt:', recordError);
       }
+
+      // Record IP failed attempt
+      const { data: ipData } = await supabase.rpc('record_ip_failed_attempt', {
+        _ip_address: ipAddress,
+        _max_attempts: 20,
+        _block_minutes: 30
+      });
+
+      // Log security event
+      await supabase.rpc('log_security_event', {
+        _email: email.toLowerCase(),
+        _event_type: 'login_failed',
+        _ip_address: ipAddress,
+        _user_agent: userAgent,
+        _metadata: {}
+      });
 
       // Check new lockout status after recording
       const { data: lockoutData } = await supabase.rpc('check_login_lockout', {
@@ -86,16 +122,41 @@ Deno.serve(async (req) => {
         _lockout_minutes: 15
       });
 
-      const result = lockoutData?.[0] || { is_locked: false, failed_attempts: 0, lockout_remaining_seconds: 0 };
+      const accountResult = lockoutData?.[0] || { is_locked: false, failed_attempts: 0, lockout_remaining_seconds: 0 };
+      const ipResult = ipData?.[0] || { is_blocked: false, failed_attempts: 0, block_remaining_seconds: 0 };
 
-      console.log(`Failed login recorded for ${email}: attempts=${result.failed_attempts}, locked=${result.is_locked}`);
+      // Send lockout alert email if just locked
+      if (accountResult.is_locked && accountResult.failed_attempts === 5) {
+        try {
+          await supabase.functions.invoke('send-lockout-alert', {
+            body: {
+              email: email.toLowerCase(),
+              lockoutMinutes: 15,
+              failedAttempts: accountResult.failed_attempts,
+              ipAddress
+            }
+          });
+          console.log(`Lockout alert sent to ${email}`);
+        } catch (alertError) {
+          console.error('Failed to send lockout alert:', alertError);
+        }
+      }
+
+      const isLocked = accountResult.is_locked || ipResult.is_blocked;
+      const lockoutSeconds = Math.max(
+        accountResult.lockout_remaining_seconds || 0,
+        ipResult.block_remaining_seconds || 0
+      );
+
+      console.log(`Failed login recorded for ${email} from ${ipAddress}: attempts=${accountResult.failed_attempts}, locked=${isLocked}`);
 
       return new Response(
         JSON.stringify({
-          isLocked: result.is_locked,
-          failedAttempts: result.failed_attempts,
-          lockoutRemainingSeconds: result.lockout_remaining_seconds,
-          remainingAttempts: Math.max(0, 5 - result.failed_attempts)
+          isLocked,
+          failedAttempts: accountResult.failed_attempts,
+          lockoutRemainingSeconds: lockoutSeconds,
+          remainingAttempts: Math.max(0, 5 - accountResult.failed_attempts),
+          ipBlocked: ipResult.is_blocked
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -114,7 +175,16 @@ Deno.serve(async (req) => {
         _email: email.toLowerCase()
       });
 
-      console.log(`Successful login recorded for ${email}, failed attempts cleared`);
+      // Log security event
+      await supabase.rpc('log_security_event', {
+        _email: email.toLowerCase(),
+        _event_type: 'login_success',
+        _ip_address: ipAddress,
+        _user_agent: userAgent,
+        _metadata: {}
+      });
+
+      console.log(`Successful login recorded for ${email} from ${ipAddress}`);
 
       return new Response(
         JSON.stringify({ success: true }),
