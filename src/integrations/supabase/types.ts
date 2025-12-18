@@ -456,6 +456,33 @@ export type Database = {
           },
         ]
       }
+      login_attempts: {
+        Row: {
+          attempted_at: string
+          email: string
+          id: string
+          ip_address: string | null
+          success: boolean
+          user_agent: string | null
+        }
+        Insert: {
+          attempted_at?: string
+          email: string
+          id?: string
+          ip_address?: string | null
+          success?: boolean
+          user_agent?: string | null
+        }
+        Update: {
+          attempted_at?: string
+          email?: string
+          id?: string
+          ip_address?: string | null
+          success?: boolean
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       mfa_recovery_codes: {
         Row: {
           code_hash: string
@@ -1222,6 +1249,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_login_lockout: {
+        Args: {
+          _email: string
+          _lockout_minutes?: number
+          _max_attempts?: number
+        }
+        Returns: {
+          failed_attempts: number
+          is_locked: boolean
+          lockout_remaining_seconds: number
+        }[]
+      }
+      clear_failed_attempts: { Args: { _email: string }; Returns: undefined }
       compare_deployment_periods: {
         Args: {
           period1_end: string
@@ -1296,6 +1336,15 @@ export type Database = {
           _environment_mode: string
           _user_id: string
           _window_start: string
+        }
+        Returns: undefined
+      }
+      record_login_attempt: {
+        Args: {
+          _email: string
+          _ip_address?: string
+          _success?: boolean
+          _user_agent?: string
         }
         Returns: undefined
       }

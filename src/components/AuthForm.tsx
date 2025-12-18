@@ -1,11 +1,13 @@
 /**
  * @fileoverview Authentication form with Zod validation and proper error handling.
  * Supports both sign-in and sign-up flows with input validation.
+ * Includes rate limiting and account lockout protection.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -15,10 +17,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle, CheckCircle, Github, Mail, AlertTriangle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Github, Mail, AlertTriangle, Clock, Lock } from 'lucide-react';
 import { STORAGE_KEYS } from '@/lib/constants';
 import { ReCaptcha, resetReCaptcha } from '@/components/ReCaptcha';
 
+interface RateLimitStatus {
+  isLocked: boolean;
+  failedAttempts: number;
+  lockoutRemainingSeconds: number;
+  remainingAttempts?: number;
+  maxAttempts: number;
+}
 // Validation schemas
 const emailSchema = z.string()
   .trim()
@@ -72,6 +81,70 @@ export function AuthForm() {
   const [signUpData, setSignUpData] = useState({ email: '', password: '', displayName: '' });
   const [rememberDevice, setRememberDevice] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [rateLimitStatus, setRateLimitStatus] = useState<RateLimitStatus | null>(null);
+  const [lockoutCountdown, setLockoutCountdown] = useState(0);
+
+  // Countdown timer for lockout
+  useEffect(() => {
+    if (lockoutCountdown <= 0) return;
+    
+    const timer = setInterval(() => {
+      setLockoutCountdown(prev => {
+        if (prev <= 1) {
+          setRateLimitStatus(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [lockoutCountdown]);
+
+  const checkRateLimit = async (email: string): Promise<RateLimitStatus | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('check-login-rate-limit', {
+        body: { email, action: 'check' }
+      });
+      
+      if (error) {
+        console.error('Rate limit check error:', error);
+        return null;
+      }
+      
+      return data as RateLimitStatus;
+    } catch (err) {
+      console.error('Rate limit check failed:', err);
+      return null;
+    }
+  };
+
+  const recordLoginAttempt = async (email: string, success: boolean) => {
+    try {
+      const { data } = await supabase.functions.invoke('check-login-rate-limit', {
+        body: { email, action: success ? 'record_success' : 'record_failure' }
+      });
+      
+      if (!success && data) {
+        const status = data as RateLimitStatus;
+        setRateLimitStatus(status);
+        if (status.isLocked && status.lockoutRemainingSeconds > 0) {
+          setLockoutCountdown(status.lockoutRemainingSeconds);
+        }
+      }
+      
+      return data as RateLimitStatus | null;
+    } catch (err) {
+      console.error('Record login attempt failed:', err);
+      return null;
+    }
+  };
+
+  const formatLockoutTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const handleRecaptchaVerify = useCallback((token: string) => {
     setRecaptchaToken(token);
@@ -134,20 +207,41 @@ export function AuthForm() {
 
     setIsLoading(true);
     
+    // Check rate limit before attempting login
+    const limitStatus = await checkRateLimit(signInData.email.trim());
+    if (limitStatus?.isLocked) {
+      setRateLimitStatus(limitStatus);
+      setLockoutCountdown(limitStatus.lockoutRemainingSeconds);
+      setIsLoading(false);
+      return;
+    }
+    
     // Store remember device preference before sign in
     localStorage.setItem(STORAGE_KEYS.REMEMBER_DEVICE, rememberDevice.toString());
     
     const { error } = await signIn(signInData.email.trim(), signInData.password);
     
     if (error) {
+      // Record failed attempt
+      await recordLoginAttempt(signInData.email.trim(), false);
+      
       // Handle specific error cases
       if (error.message.includes('Invalid login credentials')) {
-        setGeneralError('Invalid email or password. Please check your credentials and try again.');
+        const remaining = rateLimitStatus?.remainingAttempts ?? (5 - (limitStatus?.failedAttempts ?? 0) - 1);
+        if (remaining > 0) {
+          setGeneralError(`Invalid email or password. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining before account lockout.`);
+        } else {
+          setGeneralError('Invalid email or password. Your account is now temporarily locked.');
+        }
       } else if (error.message.includes('Email not confirmed')) {
         setEmailNotVerified(signInData.email.trim());
       } else {
         setGeneralError(error.message);
       }
+    } else {
+      // Record successful login
+      await recordLoginAttempt(signInData.email.trim(), true);
+      setRateLimitStatus(null);
     }
     setIsLoading(false);
   };
@@ -237,6 +331,23 @@ export function AuthForm() {
               </AlertDescription>
             </Alert>
           )}
+
+          {rateLimitStatus?.isLocked && lockoutCountdown > 0 && (
+            <Alert variant="destructive" className="mb-4">
+              <Lock className="h-4 w-4" />
+              <AlertDescription className="flex flex-col gap-2">
+                <span className="font-medium">Account temporarily locked</span>
+                <span>
+                  Too many failed login attempts. Please try again in{' '}
+                  <span className="font-mono font-bold">{formatLockoutTime(lockoutCountdown)}</span>
+                </span>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                  <Clock className="h-3 w-3" />
+                  <span>This helps protect your account from unauthorized access</span>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
           
           <Tabs defaultValue="signin" className="w-full" onValueChange={clearErrors}>
             <TabsList className="grid w-full grid-cols-2">
@@ -309,8 +420,12 @@ export function AuthForm() {
                   onExpire={handleRecaptchaExpire}
                 />
 
-              <Button type="submit" className="w-full" disabled={isLoading || !recaptchaToken}>
-                  {isLoading ? 'Signing in...' : 'Sign In'}
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={isLoading || !recaptchaToken || (rateLimitStatus?.isLocked && lockoutCountdown > 0)}
+              >
+                  {isLoading ? 'Signing in...' : rateLimitStatus?.isLocked && lockoutCountdown > 0 ? `Locked (${formatLockoutTime(lockoutCountdown)})` : 'Sign In'}
                 </Button>
                 
                 <div className="relative my-4">
