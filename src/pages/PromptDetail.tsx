@@ -10,6 +10,15 @@ import { Copy, GitFork, Trash2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { PromptOutput } from '@/components/PromptOutput';
 import { PromptVersionControl } from '@/components/PromptVersionControl';
+import { ExportMenu, type ExportFormat } from '@/components/ExportMenu';
+import {
+  exportPromptAsJSON,
+  exportPromptAsCSV,
+  exportPromptAsMarkdown,
+  exportVersionsAsJSON,
+  exportVersionsAsCSV,
+  exportVersionsAsMarkdown,
+} from '@/lib/export-utils';
 import type { GeneratedPrompt } from '@/types/prompt';
 
 export default function PromptDetail() {
@@ -215,6 +224,29 @@ export default function PromptDetail() {
                     <GitFork className="h-4 w-4 mr-2" />
                     Fork
                   </Button>
+                  <ExportMenu
+                    onExport={(format: ExportFormat) => {
+                      const exportData = {
+                        id: prompt.id,
+                        name: prompt.name,
+                        problem: prompt.problem,
+                        generated_prompt: prompt.generated_prompt,
+                        goal_type: prompt.goal_type,
+                        model_target: prompt.model_target,
+                        format: prompt.format,
+                        precision: prompt.precision,
+                        visibility: prompt.visibility,
+                        description: prompt.description,
+                        constraints: prompt.constraints,
+                        success_criteria: prompt.success_criteria,
+                        created_at: prompt.created_at,
+                        updated_at: prompt.updated_at,
+                      };
+                      if (format === 'json') exportPromptAsJSON(exportData);
+                      else if (format === 'csv') exportPromptAsCSV(exportData);
+                      else exportPromptAsMarkdown(exportData);
+                    }}
+                  />
                   {isOwner && (
                     <Button variant="destructive" onClick={() => deleteMutation.mutate()}>
                       <Trash2 className="h-4 w-4 mr-2" />

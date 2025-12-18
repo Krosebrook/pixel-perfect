@@ -16,6 +16,7 @@ import PromptDetail from "./pages/PromptDetail";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import ModelComparison from "./pages/ModelComparison";
+import BatchTesting from "./pages/BatchTesting";
 import SharedTestRun from "./pages/SharedTestRun";
 import Templates from "./pages/Templates";
 import Leaderboard from "./pages/Leaderboard";
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
             <Route path="/models/compare" element={<ProtectedRoute><ModelComparison /></ProtectedRoute>} />
+            <Route path="/models/batch" element={<ProtectedRoute><BatchTesting /></ProtectedRoute>} />
             <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
             <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
             <Route path="/scheduled-tests" element={<ProtectedRoute><ScheduledTests /></ProtectedRoute>} />

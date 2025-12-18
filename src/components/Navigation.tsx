@@ -1,7 +1,7 @@
 import { NavLink } from './NavLink';
 import { UserMenu } from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
-import { Zap, Library, Settings as SettingsIcon, Shield, Sparkles, Trophy, Clock, Users, Activity, FileText, BarChart, Key, TrendingUp } from 'lucide-react';
+import { Zap, Library, Settings as SettingsIcon, Shield, Sparkles, Trophy, Clock, Users, Activity, FileText, BarChart, Key, TrendingUp, Layers } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -39,6 +39,10 @@ export function Navigation() {
             <NavLink to="/models/compare">
               <Zap className="h-4 w-4 inline mr-2" />
               Compare
+            </NavLink>
+            <NavLink to="/models/batch">
+              <Layers className="h-4 w-4 inline mr-2" />
+              Batch
             </NavLink>
             <NavLink to="/templates">
               <Sparkles className="h-4 w-4 inline mr-2" />
