@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RateLimitWarning } from "@/components/RateLimitWarning";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { QueryErrorBoundary } from "@/components/QueryErrorBoundary";
+import { SessionTimeoutProvider } from "@/components/SessionTimeoutProvider";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Prompts from "./pages/Prompts";
@@ -37,10 +38,11 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <QueryErrorBoundary>
         <AuthProvider>
-          <RateLimitWarning />
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
+          <SessionTimeoutProvider>
+            <RateLimitWarning />
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
             <BrowserRouter>
               <Routes>
             <Route path="/auth" element={<Auth />} />
@@ -68,6 +70,7 @@ const App = () => (
               </Routes>
             </BrowserRouter>
           </TooltipProvider>
+          </SessionTimeoutProvider>
         </AuthProvider>
       </QueryErrorBoundary>
     </QueryClientProvider>

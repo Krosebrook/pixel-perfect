@@ -19,6 +19,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<{ error: any }>;
   signInWithGitHub: () => Promise<{ error: any }>;
   signInWithAzure: () => Promise<{ error: any }>;
+  signInWithApple: () => Promise<{ error: any }>;
   resetPassword: (email: string) => Promise<{ error: any }>;
   updatePassword: (newPassword: string) => Promise<{ error: any }>;
   resendVerificationEmail: (email: string) => Promise<{ error: any }>;
@@ -199,6 +200,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) {
       toast({
         title: "Microsoft sign in failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+
+    return { error };
+  };
+
+  const signInWithApple = async () => {
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'apple',
+      options: {
+        redirectTo: redirectUrl
+      }
+    });
+
+    if (error) {
+      toast({
+        title: "Apple sign in failed",
         description: error.message,
         variant: "destructive"
       });
@@ -450,7 +472,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{ 
       user, session, loading, mfaChallenge,
-      signUp, signIn, signInWithGoogle, signInWithGitHub, signInWithAzure,
+      signUp, signIn, signInWithGoogle, signInWithGitHub, signInWithAzure, signInWithApple,
       resetPassword, updatePassword, resendVerificationEmail, signOut,
       enrollTOTP, verifyTOTP, unenrollTOTP, getMFAFactors, verifyMFAChallenge,
       completeMFAChallenge, cancelMFAChallenge, generateRecoveryCodes, getRecoveryCodesCount
