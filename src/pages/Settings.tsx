@@ -12,6 +12,7 @@ import { RateLimitMonitor } from '@/components/RateLimitMonitor';
 import { TwoFactorSetup } from '@/components/TwoFactorSetup';
 import { AccountActivityLog } from '@/components/AccountActivityLog';
 import { SessionManager } from '@/components/SessionManager';
+import { DeviceManager } from '@/components/DeviceManager';
 import { useProfile } from '@/hooks/useProfile';
 import { useBudget, useUpdateBudget } from '@/hooks/useBudget';
 import { DEFAULT_ALERT_THRESHOLD } from '@/lib/constants';
@@ -111,6 +112,9 @@ export default function Settings() {
 
           {/* Session Manager */}
           <SessionManager />
+
+          {/* Device Manager */}
+          <DeviceManager />
 
           {/* Account Activity Log */}
           <AccountActivityLog />
