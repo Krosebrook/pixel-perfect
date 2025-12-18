@@ -16,7 +16,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Smartphone, Monitor, Tablet, Trash2, Shield, MapPin, Clock } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Smartphone, Monitor, Tablet, Trash2, Shield, MapPin, Clock, Pencil, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -58,6 +59,8 @@ export function DeviceManager() {
   const [isLoading, setIsLoading] = useState(true);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [currentFingerprint, setCurrentFingerprint] = useState<string>('');
+  const [editingDeviceId, setEditingDeviceId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState<string>('');
 
   useEffect(() => {
     setCurrentFingerprint(getCurrentDeviceFingerprint());
@@ -148,6 +151,41 @@ export function DeviceManager() {
     }
   };
 
+  const startEditing = (device: Device) => {
+    setEditingDeviceId(device.id);
+    setEditingName(device.device_name || `${device.browser || 'Unknown'} on ${device.os || 'Unknown'}`);
+  };
+
+  const cancelEditing = () => {
+    setEditingDeviceId(null);
+    setEditingName('');
+  };
+
+  const saveDeviceName = async (deviceId: string) => {
+    if (!editingName.trim()) {
+      toast.error('Device name cannot be empty');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('user_devices')
+        .update({ device_name: editingName.trim() })
+        .eq('id', deviceId);
+
+      if (error) throw error;
+
+      setDevices(devices.map(d => 
+        d.id === deviceId ? { ...d, device_name: editingName.trim() } : d
+      ));
+      toast.success('Device renamed successfully');
+      cancelEditing();
+    } catch (error) {
+      console.error('Error renaming device:', error);
+      toast.error('Failed to rename device');
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -234,9 +272,50 @@ export function DeviceManager() {
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">
-                        {device.browser || 'Unknown Browser'} on {device.os || 'Unknown OS'}
-                      </span>
+                      {editingDeviceId === device.id ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            className="h-7 w-48 text-sm"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveDeviceName(device.id);
+                              if (e.key === 'Escape') cancelEditing();
+                            }}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => saveDeviceName(device.id)}
+                          >
+                            <Check className="h-3 w-3 text-green-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={cancelEditing}
+                          >
+                            <X className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="font-medium">
+                            {device.device_name || `${device.browser || 'Unknown Browser'} on ${device.os || 'Unknown OS'}`}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => startEditing(device)}
+                          >
+                            <Pencil className="h-3 w-3 text-muted-foreground" />
+                          </Button>
+                        </>
+                      )}
                       {isCurrentDevice && (
                         <Badge variant="default" className="text-xs">
                           Current
