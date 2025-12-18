@@ -27,6 +27,7 @@ import Analytics from "./pages/Analytics";
 import ApiKeys from "./pages/ApiKeys";
 import Settings from "./pages/Settings";
 import DeploymentMetrics from "./pages/DeploymentMetrics";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
             <BrowserRouter>
               <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/prompts" element={<ProtectedRoute><Prompts /></ProtectedRoute>} />
             <Route path="/prompts/:id" element={<ProtectedRoute><PromptDetail /></ProtectedRoute>} />
