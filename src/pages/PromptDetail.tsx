@@ -6,10 +6,10 @@ import { Navigation } from '@/components/Navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Copy, Download, GitFork, Trash2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { Copy, GitFork, Trash2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { PromptOutput } from '@/components/PromptOutput';
+import { PromptVersionControl } from '@/components/PromptVersionControl';
 import type { GeneratedPrompt } from '@/types/prompt';
 
 export default function PromptDetail() {
@@ -257,23 +257,18 @@ export default function PromptDetail() {
               </CardContent>
             </Card>
 
-            {versions && versions.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Version History</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {versions.map((version) => (
-                    <div key={version.id} className="text-sm">
-                      <div className="font-medium">v{version.version_number}</div>
-                      <div className="text-muted-foreground text-xs">
-                        {new Date(version.created_at).toLocaleString()}
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
+            <PromptVersionControl
+              promptId={prompt.id}
+              currentPrompt={prompt.generated_prompt}
+              currentSpec={generatedPrompt.spec}
+              versions={(versions || []).map(v => ({
+                ...v,
+                spec: (v.spec as Record<string, unknown>) || {},
+                quality_scores: (v.quality_scores as Record<string, unknown>) || null,
+              }))}
+              isOwner={isOwner}
+              onRollback={() => queryClient.invalidateQueries({ queryKey: ['prompt', id] })}
+            />
           </aside>
         </div>
       </div>
