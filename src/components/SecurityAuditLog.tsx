@@ -3,10 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, Shield, LogIn, LogOut, Key, AlertTriangle, UserCheck, Filter } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Loader2, Search, Shield, LogIn, LogOut, Key, AlertTriangle, UserCheck, Filter, Download } from 'lucide-react';
+import { formatDistanceToNow, format } from 'date-fns';
 
 const activityIcons: Record<string, React.ElementType> = {
   sign_in: LogIn,
@@ -106,6 +107,36 @@ export function SecurityAuditLog() {
     return type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   };
 
+  const exportToCSV = () => {
+    if (!filteredActivities?.length) return;
+
+    const headers = ['Timestamp', 'User', 'User ID', 'Activity Type', 'IP Address', 'Location', 'Device'];
+    const rows = filteredActivities.map(activity => [
+      format(new Date(activity.created_at), 'yyyy-MM-dd HH:mm:ss'),
+      activity.display_name || 'Unknown User',
+      activity.user_id,
+      formatActivityType(activity.activity_type),
+      activity.ip_address || '',
+      activity.location || '',
+      activity.user_agent || ''
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `audit-log-${format(new Date(), 'yyyy-MM-dd-HHmmss')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -152,6 +183,14 @@ export function SecurityAuditLog() {
               ))}
             </SelectContent>
           </Select>
+          <Button 
+            variant="outline" 
+            onClick={exportToCSV}
+            disabled={!filteredActivities?.length}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
         </div>
 
         <div className="text-sm text-muted-foreground">
