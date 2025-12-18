@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { DollarSign, Bell, Shield } from 'lucide-react';
 import { RateLimitMonitor } from '@/components/RateLimitMonitor';
+import { TwoFactorSetup } from '@/components/TwoFactorSetup';
 import { useProfile } from '@/hooks/useProfile';
 import { useBudget, useUpdateBudget } from '@/hooks/useBudget';
 import { DEFAULT_ALERT_THRESHOLD } from '@/lib/constants';
@@ -102,6 +103,9 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Two-Factor Authentication */}
+          <TwoFactorSetup />
 
           {/* Budget Configuration */}
           <Card>

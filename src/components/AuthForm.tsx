@@ -52,7 +52,7 @@ interface ValidationErrors {
 }
 
 export function AuthForm() {
-  const { signIn, signUp, signInWithGoogle, signInWithGitHub, resetPassword, resendVerificationEmail } = useAuth();
+  const { signIn, signUp, signInWithGoogle, signInWithGitHub, signInWithAzure, resetPassword, resendVerificationEmail } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
@@ -306,6 +306,23 @@ export function AuthForm() {
                   <Github className="mr-2 h-4 w-4" />
                   Continue with GitHub
                 </Button>
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => signInWithAzure()}
+                  disabled={isLoading}
+                >
+                  <svg className="mr-2 h-4 w-4" viewBox="0 0 23 23">
+                    <path fill="#f3f3f3" d="M0 0h23v23H0z"/>
+                    <path fill="#f35325" d="M1 1h10v10H1z"/>
+                    <path fill="#81bc06" d="M12 1h10v10H12z"/>
+                    <path fill="#05a6f0" d="M1 12h10v10H1z"/>
+                    <path fill="#ffba08" d="M12 12h10v10H12z"/>
+                  </svg>
+                  Continue with Microsoft
+                </Button>
               </form>
             </TabsContent>
             
@@ -414,6 +431,23 @@ export function AuthForm() {
                 >
                   <Github className="mr-2 h-4 w-4" />
                   Continue with GitHub
+                </Button>
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => signInWithAzure()}
+                  disabled={isLoading}
+                >
+                  <svg className="mr-2 h-4 w-4" viewBox="0 0 23 23">
+                    <path fill="#f3f3f3" d="M0 0h23v23H0z"/>
+                    <path fill="#f35325" d="M1 1h10v10H1z"/>
+                    <path fill="#81bc06" d="M12 1h10v10H12z"/>
+                    <path fill="#05a6f0" d="M1 12h10v10H1z"/>
+                    <path fill="#ffba08" d="M12 12h10v10H12z"/>
+                  </svg>
+                  Continue with Microsoft
                 </Button>
               </form>
             </TabsContent>
