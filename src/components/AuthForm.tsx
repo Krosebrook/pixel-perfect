@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertCircle, CheckCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Github, Mail, AlertTriangle } from 'lucide-react';
 
 // Validation schemas
 const emailSchema = z.string()
@@ -52,7 +52,7 @@ interface ValidationErrors {
 }
 
 export function AuthForm() {
-  const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth();
+  const { signIn, signUp, signInWithGoogle, signInWithGitHub, resetPassword, resendVerificationEmail } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
@@ -61,9 +61,18 @@ export function AuthForm() {
   const [signInErrors, setSignInErrors] = useState<ValidationErrors>({});
   const [signUpErrors, setSignUpErrors] = useState<ValidationErrors>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
+  const [emailNotVerified, setEmailNotVerified] = useState<string | null>(null);
+  const [resendingVerification, setResendingVerification] = useState(false);
   
   const [signInData, setSignInData] = useState({ email: '', password: '' });
   const [signUpData, setSignUpData] = useState({ email: '', password: '', displayName: '' });
+
+  const handleResendVerification = async () => {
+    if (!emailNotVerified) return;
+    setResendingVerification(true);
+    await resendVerificationEmail(emailNotVerified);
+    setResendingVerification(false);
+  };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +99,7 @@ export function AuthForm() {
     e.preventDefault();
     setSignInErrors({});
     setGeneralError(null);
+    setEmailNotVerified(null);
 
     // Validate input
     const result = signInSchema.safeParse(signInData);
@@ -111,7 +121,7 @@ export function AuthForm() {
       if (error.message.includes('Invalid login credentials')) {
         setGeneralError('Invalid email or password. Please check your credentials and try again.');
       } else if (error.message.includes('Email not confirmed')) {
-        setGeneralError('Please verify your email address before signing in.');
+        setEmailNotVerified(signInData.email.trim());
       } else {
         setGeneralError(error.message);
       }
@@ -160,6 +170,7 @@ export function AuthForm() {
     setSignInErrors({});
     setSignUpErrors({});
     setGeneralError(null);
+    setEmailNotVerified(null);
   };
 
   return (
@@ -174,6 +185,25 @@ export function AuthForm() {
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{generalError}</AlertDescription>
+            </Alert>
+          )}
+
+          {emailNotVerified && (
+            <Alert className="mb-4 border-warning bg-warning/10">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <AlertDescription className="flex flex-col gap-2">
+                <span>Please verify your email address before signing in.</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResendVerification}
+                  disabled={resendingVerification}
+                  className="w-fit"
+                >
+                  <Mail className="mr-2 h-4 w-4" />
+                  {resendingVerification ? 'Sending...' : 'Resend verification email'}
+                </Button>
+              </AlertDescription>
             </Alert>
           )}
           
@@ -264,6 +294,17 @@ export function AuthForm() {
                     />
                   </svg>
                   Continue with Google
+                </Button>
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => signInWithGitHub()}
+                  disabled={isLoading}
+                >
+                  <Github className="mr-2 h-4 w-4" />
+                  Continue with GitHub
                 </Button>
               </form>
             </TabsContent>
@@ -362,6 +403,17 @@ export function AuthForm() {
                     />
                   </svg>
                   Continue with Google
+                </Button>
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => signInWithGitHub()}
+                  disabled={isLoading}
+                >
+                  <Github className="mr-2 h-4 w-4" />
+                  Continue with GitHub
                 </Button>
               </form>
             </TabsContent>
