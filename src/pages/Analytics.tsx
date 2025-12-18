@@ -46,6 +46,12 @@ import {
 import { CHART_COLORS, TIME_RANGES, TIME_RANGE_LABELS } from '@/lib/constants';
 import { formatCurrency, formatNumber, formatPercentage, formatEndpointName } from '@/lib/formatters';
 import { CostOptimizationPanel } from '@/components/CostOptimizationPanel';
+import { ExportMenu, type ExportFormat } from '@/components/ExportMenu';
+import {
+  exportAnalyticsAsJSON,
+  exportAnalyticsAsCSV,
+  exportAnalyticsAsMarkdown,
+} from '@/lib/export-utils';
 
 export default function Analytics() {
   const { user } = useAuth();
@@ -86,18 +92,36 @@ export default function Analytics() {
               Track spending, patterns, and performance
             </p>
           </div>
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-[180px]">
-              <Calendar className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TIME_RANGES.SEVEN_DAYS}>{TIME_RANGE_LABELS[TIME_RANGES.SEVEN_DAYS]}</SelectItem>
-              <SelectItem value={TIME_RANGES.THIRTY_DAYS}>{TIME_RANGE_LABELS[TIME_RANGES.THIRTY_DAYS]}</SelectItem>
-              <SelectItem value={TIME_RANGES.SIXTY_DAYS}>{TIME_RANGE_LABELS[TIME_RANGES.SIXTY_DAYS]}</SelectItem>
-              <SelectItem value={TIME_RANGES.NINETY_DAYS}>{TIME_RANGE_LABELS[TIME_RANGES.NINETY_DAYS]}</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <ExportMenu
+              onExport={(format: ExportFormat) => {
+                const analyticsData = {
+                  totalRuns: summaryStats?.totalRuns || 0,
+                  totalCost: summaryStats?.totalCost || 0,
+                  avgLatency: summaryStats?.avgLatency || 0,
+                  successRate: summaryStats?.successRate || 0,
+                  dailySpending: (dailySpending || []) as { date: string; cost: number; count: number }[],
+                  costByEndpoint: costByEndpoint || [],
+                };
+                if (format === 'json') exportAnalyticsAsJSON(analyticsData, timeRange);
+                else if (format === 'csv') exportAnalyticsAsCSV(analyticsData, timeRange);
+                else exportAnalyticsAsMarkdown(analyticsData, timeRange);
+              }}
+              disabled={!summaryStats}
+            />
+            <Select value={timeRange} onValueChange={setTimeRange}>
+              <SelectTrigger className="w-[180px]">
+                <Calendar className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TIME_RANGES.SEVEN_DAYS}>{TIME_RANGE_LABELS[TIME_RANGES.SEVEN_DAYS]}</SelectItem>
+                <SelectItem value={TIME_RANGES.THIRTY_DAYS}>{TIME_RANGE_LABELS[TIME_RANGES.THIRTY_DAYS]}</SelectItem>
+                <SelectItem value={TIME_RANGES.SIXTY_DAYS}>{TIME_RANGE_LABELS[TIME_RANGES.SIXTY_DAYS]}</SelectItem>
+                <SelectItem value={TIME_RANGES.NINETY_DAYS}>{TIME_RANGE_LABELS[TIME_RANGES.NINETY_DAYS]}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Summary Cards */}
