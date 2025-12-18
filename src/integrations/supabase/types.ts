@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_activity: {
+        Row: {
+          activity_type: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          location: string | null
+          metadata: Json | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_insights: {
         Row: {
           based_on_runs: string[] | null
