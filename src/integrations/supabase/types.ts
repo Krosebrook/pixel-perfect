@@ -456,6 +456,36 @@ export type Database = {
           },
         ]
       }
+      ip_rate_limits: {
+        Row: {
+          blocked_until: string | null
+          failed_attempts: number | null
+          first_attempt_at: string | null
+          id: string
+          ip_address: string
+          is_blocked: boolean | null
+          last_attempt_at: string | null
+        }
+        Insert: {
+          blocked_until?: string | null
+          failed_attempts?: number | null
+          first_attempt_at?: string | null
+          id?: string
+          ip_address: string
+          is_blocked?: boolean | null
+          last_attempt_at?: string | null
+        }
+        Update: {
+          blocked_until?: string | null
+          failed_attempts?: number | null
+          first_attempt_at?: string | null
+          id?: string
+          ip_address?: string
+          is_blocked?: boolean | null
+          last_attempt_at?: string | null
+        }
+        Relationships: []
+      }
       login_attempts: {
         Row: {
           attempted_at: string
@@ -1023,6 +1053,50 @@ export type Database = {
           },
         ]
       }
+      security_audit_log: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          location: string | null
+          metadata: Json | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_audit_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_members: {
         Row: {
           id: string
@@ -1249,6 +1323,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_ip_rate_limit: {
+        Args: {
+          _block_minutes?: number
+          _ip_address: string
+          _max_attempts?: number
+          _window_minutes?: number
+        }
+        Returns: {
+          block_remaining_seconds: number
+          failed_attempts: number
+          is_blocked: boolean
+        }[]
+      }
       check_login_lockout: {
         Args: {
           _email: string
@@ -1338,6 +1425,28 @@ export type Database = {
           _window_start: string
         }
         Returns: undefined
+      }
+      log_security_event: {
+        Args: {
+          _email: string
+          _event_type: string
+          _ip_address?: string
+          _metadata?: Json
+          _user_agent?: string
+        }
+        Returns: undefined
+      }
+      record_ip_failed_attempt: {
+        Args: {
+          _block_minutes?: number
+          _ip_address: string
+          _max_attempts?: number
+        }
+        Returns: {
+          block_remaining_seconds: number
+          failed_attempts: number
+          is_blocked: boolean
+        }[]
       }
       record_login_attempt: {
         Args: {
