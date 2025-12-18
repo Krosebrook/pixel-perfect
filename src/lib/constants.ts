@@ -36,3 +36,7 @@ export const REFETCH_INTERVALS = {
   NORMAL: 10000,
   SLOW: 30000,
 } as const;
+
+// Session timeout configuration (in milliseconds)
+export const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+export const SESSION_WARNING_BEFORE_TIMEOUT_MS = 60 * 1000; // 1 minute warning
