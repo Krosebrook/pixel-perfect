@@ -3,8 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Shield, AlertTriangle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { Navigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Shield, AlertTriangle, CheckCircle, XCircle, Loader2, FileText } from 'lucide-react';
+import { Navigate, Link } from 'react-router-dom';
 import { SecurityAuditLog } from '@/components/SecurityAuditLog';
 
 export default function SecurityDashboard() {
@@ -102,12 +103,20 @@ export default function SecurityDashboard() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <div className="flex items-center gap-3">
-        <Shield className="h-8 w-8 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold">Security Dashboard</h1>
-          <p className="text-muted-foreground">Monitor security controls and metrics</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Shield className="h-8 w-8 text-primary" />
+          <div>
+            <h1 className="text-3xl font-bold">Security Dashboard</h1>
+            <p className="text-muted-foreground">Monitor security controls and metrics</p>
+          </div>
         </div>
+        <Button asChild>
+          <Link to="/security/audit-log">
+            <FileText className="h-4 w-4 mr-2" />
+            View Full Audit Log
+          </Link>
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
