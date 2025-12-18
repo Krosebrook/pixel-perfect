@@ -186,7 +186,7 @@ export function DeviceManager() {
               Manage Devices
             </CardTitle>
             <CardDescription>
-              View and manage devices that have accessed your account
+              View and manage devices that have accessed your account. Trusted devices have extended session timeouts (7 days).
             </CardDescription>
           </div>
           {devices.length > 1 && (
@@ -270,11 +270,13 @@ export function DeviceManager() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
-                    variant="ghost"
+                    variant={device.is_trusted ? "secondary" : "outline"}
                     size="sm"
                     onClick={() => toggleTrusted(device.id, device.is_trusted || false)}
+                    className="gap-1"
                   >
-                    {device.is_trusted ? 'Untrust' : 'Trust'}
+                    <Shield className="h-3 w-3" />
+                    {device.is_trusted ? 'Remove Trust' : 'Trust Device'}
                   </Button>
                   {!isCurrentDevice && (
                     <AlertDialog>
