@@ -15,3 +15,6 @@ verify_jwt = false
 
 [functions.generate-changelog]
 verify_jwt = false
+
+[functions.send-new-device-alert]
+verify_jwt = true

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session, AuthMFAEnrollResponse, Factor } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useDeviceTracking } from '@/hooks/useDeviceTracking';
 
 interface MFAChallengeState {
   required: boolean;
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [mfaChallenge, setMfaChallenge] = useState<MFAChallengeState>({ required: false, factorId: null });
   const { toast } = useToast();
+  const { checkAndTrackDevice } = useDeviceTracking();
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -121,6 +123,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setMfaChallenge({ required: true, factorId: verifiedFactors[0].id });
         return { error: null, mfaRequired: true };
       }
+    }
+
+    // Track device after successful sign-in (deferred to avoid blocking)
+    if (data.user) {
+      setTimeout(() => {
+        checkAndTrackDevice(data.user.id, email);
+      }, 0);
     }
 
     return { error };
