@@ -38,5 +38,22 @@ export const REFETCH_INTERVALS = {
 } as const;
 
 // Session timeout configuration (in milliseconds)
-export const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+export const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes default
 export const SESSION_WARNING_BEFORE_TIMEOUT_MS = 60 * 1000; // 1 minute warning
+
+// Session timeout options for user selection
+export const SESSION_TIMEOUT_OPTIONS = [
+  { value: 15 * 60 * 1000, label: '15 minutes' },
+  { value: 30 * 60 * 1000, label: '30 minutes' },
+  { value: 45 * 60 * 1000, label: '45 minutes' },
+  { value: 60 * 60 * 1000, label: '1 hour' },
+] as const;
+
+// Extended timeout for trusted devices (7 days)
+export const TRUSTED_DEVICE_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Local storage keys
+export const STORAGE_KEYS = {
+  SESSION_TIMEOUT: 'session_timeout_ms',
+  REMEMBER_DEVICE: 'remember_device',
+} as const;

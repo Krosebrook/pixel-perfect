@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { SESSION_TIMEOUT_MS, SESSION_WARNING_BEFORE_TIMEOUT_MS } from '@/lib/constants';
+import { 
+  SESSION_TIMEOUT_MS, 
+  SESSION_WARNING_BEFORE_TIMEOUT_MS, 
+  TRUSTED_DEVICE_TIMEOUT_MS,
+  STORAGE_KEYS 
+} from '@/lib/constants';
 
 interface UseSessionTimeoutOptions {
-  timeoutMs?: number;
   warningBeforeMs?: number;
   onTimeout?: () => void;
 }
@@ -13,18 +17,47 @@ interface SessionTimeoutState {
   remainingSeconds: number;
 }
 
+function getStoredTimeout(): number {
+  // Check if device is trusted (extended timeout)
+  const rememberDevice = localStorage.getItem(STORAGE_KEYS.REMEMBER_DEVICE);
+  if (rememberDevice === 'true') {
+    return TRUSTED_DEVICE_TIMEOUT_MS;
+  }
+  
+  // Check user preference
+  const stored = localStorage.getItem(STORAGE_KEYS.SESSION_TIMEOUT);
+  if (stored) {
+    return parseInt(stored, 10);
+  }
+  
+  return SESSION_TIMEOUT_MS;
+}
+
 export function useSessionTimeout(options: UseSessionTimeoutOptions = {}) {
   const { 
-    timeoutMs = SESSION_TIMEOUT_MS, 
     warningBeforeMs = SESSION_WARNING_BEFORE_TIMEOUT_MS,
     onTimeout 
   } = options;
+  
+  const [timeoutMs, setTimeoutMs] = useState<number>(getStoredTimeout);
   
   const { user, signOut } = useAuth();
   const [state, setState] = useState<SessionTimeoutState>({
     showWarning: false,
     remainingSeconds: Math.floor(warningBeforeMs / 1000),
   });
+  
+  // Listen for timeout setting changes
+  useEffect(() => {
+    const handleTimeoutChange = (e: CustomEvent<number>) => {
+      setTimeoutMs(e.detail);
+    };
+    
+    window.addEventListener('session-timeout-changed', handleTimeoutChange as EventListener);
+    return () => {
+      window.removeEventListener('session-timeout-changed', handleTimeoutChange as EventListener);
+    };
+  }, []);
   
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);

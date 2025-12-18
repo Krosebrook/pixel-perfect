@@ -13,7 +13,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { AlertCircle, CheckCircle, Github, Mail, AlertTriangle } from 'lucide-react';
+import { STORAGE_KEYS } from '@/lib/constants';
 
 // Validation schemas
 const emailSchema = z.string()
@@ -66,6 +68,7 @@ export function AuthForm() {
   
   const [signInData, setSignInData] = useState({ email: '', password: '' });
   const [signUpData, setSignUpData] = useState({ email: '', password: '', displayName: '' });
+  const [rememberDevice, setRememberDevice] = useState(false);
 
   const handleResendVerification = async () => {
     if (!emailNotVerified) return;
@@ -114,6 +117,10 @@ export function AuthForm() {
     }
 
     setIsLoading(true);
+    
+    // Store remember device preference before sign in
+    localStorage.setItem(STORAGE_KEYS.REMEMBER_DEVICE, rememberDevice.toString());
+    
     const { error } = await signIn(signInData.email.trim(), signInData.password);
     
     if (error) {
@@ -247,6 +254,24 @@ export function AuthForm() {
                       {signInErrors.password}
                     </p>
                   )}
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="remember-device"
+                      checked={rememberDevice}
+                      onCheckedChange={(checked) => setRememberDevice(checked === true)}
+                    />
+                    <div className="grid gap-0.5">
+                      <Label htmlFor="remember-device" className="text-sm cursor-pointer">
+                        Remember this device
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Extends session to 7 days
+                      </p>
+                    </div>
+                  </div>
                   <button
                     type="button"
                     className="text-sm text-primary hover:underline"
