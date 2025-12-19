@@ -1,7 +1,7 @@
 import { NavLink } from './NavLink';
 import { UserMenu } from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
-import { Zap, Library, Settings as SettingsIcon, Shield, Sparkles, Trophy, Clock, Users, Activity, FileText, BarChart, Key, TrendingUp, Layers } from 'lucide-react';
+import { Zap, Library, Settings as SettingsIcon, Shield, Sparkles, Trophy, Clock, Users, Activity, FileText, BarChart, Key, TrendingUp, Layers, TestTube2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -89,6 +89,10 @@ export function Navigation() {
                 <NavLink to="/deployment-metrics">
                   <TrendingUp className="h-4 w-4 inline mr-2" />
                   Deployments
+                </NavLink>
+                <NavLink to="/test-coverage">
+                  <TestTube2 className="h-4 w-4 inline mr-2" />
+                  Coverage
                 </NavLink>
                 <NavLink to="/admin">
                   <Shield className="h-4 w-4 inline mr-2" />
