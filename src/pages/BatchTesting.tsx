@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,24 +38,200 @@ import {
   exportBatchResultsAsMarkdown,
   BatchTestResult,
 } from '@/lib/export-utils';
+import { MODEL_OPTIONS } from '@/lib/constants';
 
-const MODEL_OPTIONS = [
-  { key: 'gpt-5', name: 'GPT-5', provider: 'OpenAI' },
-  { key: 'gpt-5-mini', name: 'GPT-5 Mini', provider: 'OpenAI' },
-  { key: 'gpt-5-nano', name: 'GPT-5 Nano', provider: 'OpenAI' },
-  { key: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5', provider: 'Anthropic' },
-  { key: 'claude-opus-4-1', name: 'Claude Opus 4.1', provider: 'Anthropic' },
-  { key: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google' },
-  { key: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google' },
-  { key: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'Google' },
-];
+// ============================================================================
+// Types
+// ============================================================================
 
 interface PromptItem {
   id: string;
   text: string;
 }
 
-export default function BatchTesting() {
+interface ModelResultProps {
+  result: {
+    model: string;
+    output: string | null;
+    latency: number;
+    cost: number;
+    error?: string;
+  };
+}
+
+interface BatchResultCardProps {
+  batch: BatchTestResult;
+  batchIndex: number;
+}
+
+interface ModelSelectorProps {
+  selectedModels: string[];
+  onToggle: (modelKey: string) => void;
+}
+
+interface PromptInputProps {
+  prompt: PromptItem;
+  index: number;
+  canRemove: boolean;
+  onUpdate: (id: string, text: string) => void;
+  onRemove: (id: string) => void;
+}
+
+// ============================================================================
+// Memoized Sub-Components
+// ============================================================================
+
+const ModelResult = memo(function ModelResult({ result }: ModelResultProps) {
+  const modelInfo = useMemo(
+    () => MODEL_OPTIONS.find(m => m.key === result.model),
+    [result.model]
+  );
+
+  return (
+    <Card 
+      className={result.error ? 'border-destructive' : ''}
+      role="article"
+      aria-label={`Result for ${modelInfo?.name || result.model}`}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm">{modelInfo?.name || result.model}</CardTitle>
+          {result.error ? (
+            <XCircle className="h-4 w-4 text-destructive" aria-label="Error" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4 text-green-500" aria-label="Success" />
+          )}
+        </div>
+        <div className="flex gap-3 text-xs text-muted-foreground" aria-label="Metrics">
+          <span aria-label={`Latency: ${result.latency} milliseconds`}>{result.latency}ms</span>
+          <span aria-label={`Cost: $${result.cost.toFixed(6)}`}>${result.cost.toFixed(6)}</span>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {result.error ? (
+          <p className="text-sm text-destructive" role="alert">{result.error}</p>
+        ) : (
+          <p className="text-sm line-clamp-4">{result.output}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+});
+
+const BatchResultCard = memo(function BatchResultCard({ batch, batchIndex }: BatchResultCardProps) {
+  return (
+    <Card role="region" aria-labelledby={`batch-result-${batchIndex}`}>
+      <CardHeader>
+        <CardTitle id={`batch-result-${batchIndex}`} className="text-sm flex items-center gap-2">
+          <Badge variant="outline">Test {batchIndex + 1}</Badge>
+          <span className="text-muted-foreground font-normal truncate max-w-md">
+            {batch.prompt.substring(0, 60)}...
+          </span>
+        </CardTitle>
+        <CardDescription className="flex gap-4">
+          <span className="flex items-center gap-1" aria-label={`Cost: $${batch.totalCost.toFixed(6)}`}>
+            <DollarSign className="h-3 w-3" aria-hidden="true" />${batch.totalCost.toFixed(6)}
+          </span>
+          <span className="flex items-center gap-1" aria-label={`Latency: ${batch.totalLatency} milliseconds`}>
+            <Clock className="h-3 w-3" aria-hidden="true" />{batch.totalLatency}ms
+          </span>
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" role="list" aria-label="Model results">
+          {batch.results.map((result) => (
+            <ModelResult key={result.model} result={result} />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+});
+
+const ModelSelector = memo(function ModelSelector({ selectedModels, onToggle }: ModelSelectorProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm" id="model-selection-title">Select Models</CardTitle>
+        <CardDescription>Models to test each prompt against</CardDescription>
+      </CardHeader>
+      <CardContent 
+        className="space-y-3" 
+        role="group" 
+        aria-labelledby="model-selection-title"
+      >
+        {MODEL_OPTIONS.map((model) => (
+          <div key={model.key} className="flex items-center space-x-2">
+            <Checkbox
+              id={model.key}
+              checked={selectedModels.includes(model.key)}
+              onCheckedChange={() => onToggle(model.key)}
+              aria-describedby={`${model.key}-provider`}
+            />
+            <Label htmlFor={model.key} className="text-sm cursor-pointer">
+              {model.name}
+              <span id={`${model.key}-provider`} className="text-xs text-muted-foreground ml-1">
+                ({model.provider})
+              </span>
+            </Label>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+});
+
+const PromptInput = memo(function PromptInput({ 
+  prompt, 
+  index, 
+  canRemove, 
+  onUpdate, 
+  onRemove 
+}: PromptInputProps) {
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      onUpdate(prompt.id, e.target.value);
+    },
+    [prompt.id, onUpdate]
+  );
+
+  const handleRemove = useCallback(() => {
+    onRemove(prompt.id);
+  }, [prompt.id, onRemove]);
+
+  return (
+    <div className="space-y-2" role="group" aria-labelledby={`prompt-label-${prompt.id}`}>
+      <div className="flex items-center justify-between">
+        <Label id={`prompt-label-${prompt.id}`} className="text-sm font-medium">
+          Prompt {index + 1}
+        </Label>
+        {canRemove && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRemove}
+            aria-label={`Remove prompt ${index + 1}`}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
+          </Button>
+        )}
+      </div>
+      <Textarea
+        placeholder="Enter your prompt..."
+        value={prompt.text}
+        onChange={handleChange}
+        rows={3}
+        aria-labelledby={`prompt-label-${prompt.id}`}
+      />
+    </div>
+  );
+});
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
+function BatchTesting() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [prompts, setPrompts] = useState<PromptItem[]>([{ id: crypto.randomUUID(), text: '' }]);
@@ -78,37 +254,37 @@ export default function BatchTesting() {
     enabled: !!user,
   });
 
-  const addPrompt = () => {
+  // Memoized callbacks
+  const addPrompt = useCallback(() => {
     setPrompts(prev => [...prev, { id: crypto.randomUUID(), text: '' }]);
-  };
+  }, []);
 
-  const removePrompt = (id: string) => {
-    if (prompts.length > 1) {
-      setPrompts(prev => prev.filter(p => p.id !== id));
-    }
-  };
+  const removePrompt = useCallback((id: string) => {
+    setPrompts(prev => prev.length > 1 ? prev.filter(p => p.id !== id) : prev);
+  }, []);
 
-  const updatePrompt = (id: string, text: string) => {
+  const updatePrompt = useCallback((id: string, text: string) => {
     setPrompts(prev => prev.map(p => p.id === id ? { ...p, text } : p));
-  };
+  }, []);
 
-  const loadSavedPrompt = (promptText: string) => {
-    const emptyPrompt = prompts.find(p => !p.text.trim());
-    if (emptyPrompt) {
-      updatePrompt(emptyPrompt.id, promptText);
-    } else {
-      setPrompts(prev => [...prev, { id: crypto.randomUUID(), text: promptText }]);
-    }
+  const loadSavedPrompt = useCallback((promptText: string) => {
+    setPrompts(prev => {
+      const emptyPrompt = prev.find(p => !p.text.trim());
+      if (emptyPrompt) {
+        return prev.map(p => p.id === emptyPrompt.id ? { ...p, text: promptText } : p);
+      }
+      return [...prev, { id: crypto.randomUUID(), text: promptText }];
+    });
     toast.success('Prompt loaded');
-  };
+  }, []);
 
-  const toggleModel = (modelKey: string) => {
+  const toggleModel = useCallback((modelKey: string) => {
     setSelectedModels(prev =>
       prev.includes(modelKey) ? prev.filter(m => m !== modelKey) : [...prev, modelKey]
     );
-  };
+  }, []);
 
-  const runBatchTest = async () => {
+  const runBatchTest = useCallback(async () => {
     const validPrompts = prompts.filter(p => p.text.trim());
     if (validPrompts.length === 0) {
       toast.error('Please add at least one prompt');
@@ -180,60 +356,68 @@ export default function BatchTesting() {
     queryClient.invalidateQueries({ queryKey: ['model-comparison-history'] });
     setIsRunning(false);
     toast.success(`Batch test complete: ${batchResults.length} prompts tested`);
-  };
+  }, [prompts, selectedModels, user, queryClient]);
 
-  const totalCost = results.reduce((sum, r) => sum + r.totalCost, 0);
-  const maxLatency = Math.max(...results.map(r => r.totalLatency), 0);
+  // Memoized computed values
+  const totalCost = useMemo(
+    () => results.reduce((sum, r) => sum + r.totalCost, 0),
+    [results]
+  );
+
+  const maxLatency = useMemo(
+    () => Math.max(...results.map(r => r.totalLatency), 0),
+    [results]
+  );
+
+  const validPromptCount = useMemo(
+    () => prompts.filter(p => p.text.trim()).length,
+    [prompts]
+  );
+
+  const canRun = useMemo(
+    () => !isRunning && validPromptCount > 0 && selectedModels.length > 0,
+    [isRunning, validPromptCount, selectedModels.length]
+  );
+
+  const savedPromptsList = useMemo(
+    () => savedPrompts?.slice(0, 5) || [],
+    [savedPrompts]
+  );
 
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <div className="container mx-auto py-8 px-4">
-        <div className="mb-8">
+      <main className="container mx-auto py-8 px-4" role="main" aria-label="Batch Prompt Testing">
+        <header className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Batch Prompt Testing</h1>
           <p className="text-muted-foreground">
             Run multiple prompts across models simultaneously and compare results
           </p>
-        </div>
+        </header>
 
         <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
           {/* Sidebar - Model Selection */}
-          <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Select Models</CardTitle>
-                <CardDescription>Models to test each prompt against</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {MODEL_OPTIONS.map((model) => (
-                  <div key={model.key} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={model.key}
-                      checked={selectedModels.includes(model.key)}
-                      onCheckedChange={() => toggleModel(model.key)}
-                    />
-                    <Label htmlFor={model.key} className="text-sm cursor-pointer">
-                      {model.name}
-                      <span className="text-xs text-muted-foreground ml-1">({model.provider})</span>
-                    </Label>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+          <aside className="space-y-4" aria-label="Testing configuration">
+            <ModelSelector selectedModels={selectedModels} onToggle={toggleModel} />
 
-            {savedPrompts && savedPrompts.length > 0 && (
+            {savedPromptsList.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm">Saved Prompts</CardTitle>
+                  <CardTitle className="text-sm" id="saved-prompts-title">Saved Prompts</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  {savedPrompts.slice(0, 5).map((saved) => (
+                <CardContent 
+                  className="space-y-2" 
+                  role="list" 
+                  aria-labelledby="saved-prompts-title"
+                >
+                  {savedPromptsList.map((saved) => (
                     <Button
                       key={saved.id}
                       variant="ghost"
                       size="sm"
                       className="w-full justify-start text-xs truncate"
                       onClick={() => loadSavedPrompt(saved.prompt_text)}
+                      aria-label={`Load saved prompt: ${saved.name}`}
                     >
                       {saved.name}
                     </Button>
@@ -241,7 +425,7 @@ export default function BatchTesting() {
                 </CardContent>
               </Card>
             )}
-          </div>
+          </aside>
 
           {/* Main Content */}
           <div className="space-y-6">
@@ -250,56 +434,50 @@ export default function BatchTesting() {
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <div>
-                    <CardTitle>Prompts to Test</CardTitle>
+                    <CardTitle id="prompts-section-title">Prompts to Test</CardTitle>
                     <CardDescription>Add multiple prompts to test in batch</CardDescription>
                   </div>
-                  <Button variant="outline" size="sm" onClick={addPrompt}>
-                    <Plus className="h-4 w-4 mr-2" />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={addPrompt}
+                    aria-label="Add new prompt"
+                  >
+                    <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
                     Add Prompt
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4" aria-labelledby="prompts-section-title">
                 {prompts.map((prompt, idx) => (
-                  <div key={prompt.id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium">Prompt {idx + 1}</Label>
-                      {prompts.length > 1 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removePrompt(prompt.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
-                    </div>
-                    <Textarea
-                      placeholder="Enter your prompt..."
-                      value={prompt.text}
-                      onChange={(e) => updatePrompt(prompt.id, e.target.value)}
-                      rows={3}
-                    />
-                  </div>
+                  <PromptInput
+                    key={prompt.id}
+                    prompt={prompt}
+                    index={idx}
+                    canRemove={prompts.length > 1}
+                    onUpdate={updatePrompt}
+                    onRemove={removePrompt}
+                  />
                 ))}
 
                 <Separator />
 
-                <div className="flex gap-2">
+                <div className="flex gap-2" role="group" aria-label="Test actions">
                   <Button
                     onClick={runBatchTest}
-                    disabled={isRunning || prompts.every(p => !p.text.trim()) || selectedModels.length === 0}
+                    disabled={!canRun}
                     className="flex-1"
+                    aria-live="polite"
                   >
                     {isRunning ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                         Testing ({progress.current}/{progress.total})
                       </>
                     ) : (
                       <>
-                        <Play className="h-4 w-4 mr-2" />
-                        Run Batch Test ({prompts.filter(p => p.text.trim()).length} prompts × {selectedModels.length} models)
+                        <Play className="h-4 w-4 mr-2" aria-hidden="true" />
+                        Run Batch Test ({validPromptCount} prompts × {selectedModels.length} models)
                       </>
                     )}
                   </Button>
@@ -307,22 +485,22 @@ export default function BatchTesting() {
                   {results.length > 0 && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline">
-                          <Download className="h-4 w-4 mr-2" />
+                        <Button variant="outline" aria-label="Export results">
+                          <Download className="h-4 w-4 mr-2" aria-hidden="true" />
                           Export
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
                         <DropdownMenuItem onClick={() => exportBatchResultsAsJSON(results)}>
-                          <FileJson className="h-4 w-4 mr-2" />
+                          <FileJson className="h-4 w-4 mr-2" aria-hidden="true" />
                           Export as JSON
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => exportBatchResultsAsCSV(results)}>
-                          <FileText className="h-4 w-4 mr-2" />
+                          <FileText className="h-4 w-4 mr-2" aria-hidden="true" />
                           Export as CSV
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => exportBatchResultsAsMarkdown(results)}>
-                          <FileDown className="h-4 w-4 mr-2" />
+                          <FileDown className="h-4 w-4 mr-2" aria-hidden="true" />
                           Export as Markdown
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -334,14 +512,19 @@ export default function BatchTesting() {
 
             {/* Progress */}
             {isRunning && (
-              <Card>
+              <Card role="status" aria-live="polite" aria-label="Test progress">
                 <CardContent className="pt-6">
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Testing prompts...</span>
-                      <span>{progress.current} / {progress.total}</span>
+                      <span aria-label={`${progress.current} of ${progress.total} complete`}>
+                        {progress.current} / {progress.total}
+                      </span>
                     </div>
-                    <Progress value={(progress.current / progress.total) * 100} />
+                    <Progress 
+                      value={(progress.current / progress.total) * 100} 
+                      aria-label="Test progress"
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -349,21 +532,23 @@ export default function BatchTesting() {
 
             {/* Results Summary */}
             {results.length > 0 && (
-              <Card>
+              <Card role="region" aria-labelledby="results-summary-title">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle id="results-summary-title" className="flex items-center gap-2">
                     Results Summary
-                    <Badge variant="secondary">{results.length} tests</Badge>
+                    <Badge variant="secondary" aria-label={`${results.length} tests completed`}>
+                      {results.length} tests
+                    </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex gap-6 text-sm">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex gap-6 text-sm" role="list" aria-label="Summary metrics">
+                    <div className="flex items-center gap-2" role="listitem">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                       <span>Total Cost: <strong>${totalCost.toFixed(6)}</strong></span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center gap-2" role="listitem">
+                      <Clock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                       <span>Max Latency: <strong>{maxLatency}ms</strong></span>
                     </div>
                   </div>
@@ -372,61 +557,16 @@ export default function BatchTesting() {
             )}
 
             {/* Individual Results */}
-            {results.map((batch, batchIdx) => (
-              <Card key={batchIdx}>
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Badge variant="outline">Test {batchIdx + 1}</Badge>
-                    <span className="text-muted-foreground font-normal truncate max-w-md">
-                      {batch.prompt.substring(0, 60)}...
-                    </span>
-                  </CardTitle>
-                  <CardDescription className="flex gap-4">
-                    <span className="flex items-center gap-1">
-                      <DollarSign className="h-3 w-3" />${batch.totalCost.toFixed(6)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />{batch.totalLatency}ms
-                    </span>
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {batch.results.map((result) => {
-                      const modelInfo = MODEL_OPTIONS.find(m => m.key === result.model);
-                      return (
-                        <Card key={result.model} className={result.error ? 'border-destructive' : ''}>
-                          <CardHeader className="pb-2">
-                            <div className="flex items-center justify-between">
-                              <CardTitle className="text-sm">{modelInfo?.name || result.model}</CardTitle>
-                              {result.error ? (
-                                <XCircle className="h-4 w-4 text-destructive" />
-                              ) : (
-                                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                              )}
-                            </div>
-                            <div className="flex gap-3 text-xs text-muted-foreground">
-                              <span>{result.latency}ms</span>
-                              <span>${result.cost.toFixed(6)}</span>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            {result.error ? (
-                              <p className="text-sm text-destructive">{result.error}</p>
-                            ) : (
-                              <p className="text-sm line-clamp-4">{result.output}</p>
-                            )}
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            <section aria-label="Test results">
+              {results.map((batch, batchIdx) => (
+                <BatchResultCard key={batchIdx} batch={batch} batchIndex={batchIdx} />
+              ))}
+            </section>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
+
+export default memo(BatchTesting);
