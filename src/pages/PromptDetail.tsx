@@ -145,11 +145,10 @@ function PromptDetail() {
   const { copy } = useClipboard();
 
   // Use service layer hooks
-  const { data: promptResult, isLoading } = usePromptDetail(id || '');
+  const { data: prompt, isLoading } = usePromptDetail(id || '');
   const forkMutation = useForkPrompt();
   const deleteMutation = useDeletePrompt();
 
-  const prompt = promptResult?.data;
   const versions = prompt?.versions || [];
 
   const isOwner = useMemo(
@@ -183,9 +182,9 @@ function PromptDetail() {
       { originalPromptId: prompt.id, userId: user.id },
       {
         onSuccess: (result) => {
-          if (result?.data) {
+          if (result) {
             toast.success('Prompt forked successfully!');
-            navigate(`/prompts/${result.data.id}`);
+            navigate(`/prompts/${result.id}`);
           }
         },
         onError: () => {

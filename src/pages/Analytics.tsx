@@ -446,27 +446,27 @@ function Analytics() {
           </TabsList>
 
           <TabsContent value="spending" className="space-y-4">
-            <SpendingChart data={safeDailySpending} tooltipStyle={tooltipStyle} />
+            <SpendingChart data={dailySpending || []} tooltipStyle={tooltipStyle} />
           </TabsContent>
 
           <TabsContent value="calls" className="space-y-4">
             <ApiCallsChart 
               apiCallPatterns={apiCallPatterns} 
-              dailySpending={safeDailySpending}
+              dailySpending={dailySpending || []}
               tooltipStyle={tooltipStyle}
             />
           </TabsContent>
 
           <TabsContent value="breakdown" className="space-y-4">
             <CostBreakdownSection 
-              costByEndpoint={safeCostByEndpoint}
+              costByEndpoint={costByEndpoint || []}
               tooltipStyle={tooltipStyle}
             />
           </TabsContent>
 
           <TabsContent value="patterns" className="space-y-4">
             <HourlyPatternChart 
-              data={safeHourlyDistribution}
+              data={hourlyDistribution || []}
               tooltipStyle={tooltipStyle}
             />
           </TabsContent>
