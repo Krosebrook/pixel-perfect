@@ -426,29 +426,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       codes.push(code);
     }
 
-    // Delete old recovery codes
-    await supabase
-      .from('mfa_recovery_codes')
-      .delete()
-      .eq('user_id', currentUser.id);
+    // Use edge function to securely hash and store codes
+    const { data, error } = await supabase.functions.invoke('hash-recovery-code', {
+      body: { action: 'generate', codes }
+    });
 
-    // Store new codes (storing as plain text for simplicity - in production use proper hashing)
-    const codeRecords = codes.map(code => ({
-      user_id: currentUser.id,
-      code_hash: code.replace(/-/g, '')
-    }));
-
-    const { error } = await supabase
-      .from('mfa_recovery_codes')
-      .insert(codeRecords);
-
-    if (error) {
+    if (error || !data?.success) {
       toast({
         title: "Failed to generate recovery codes",
-        description: error.message,
+        description: error?.message || 'Unknown error',
         variant: "destructive"
       });
-      return { codes: [], error };
+      return { codes: [], error: error || new Error('Failed to store codes') };
     }
 
     return { codes, error: null };

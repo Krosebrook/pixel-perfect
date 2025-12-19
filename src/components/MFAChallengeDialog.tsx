@@ -69,58 +69,18 @@ export function MFAChallengeDialog({ open, factorId, onSuccess, onCancel }: MFAC
     setError(null);
 
     try {
-      // Hash the recovery code and check against stored codes
-      const normalizedCode = recoveryCode.replace(/[-\s]/g, '').toUpperCase();
-      
-      // Get user's recovery codes
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setError('User not authenticated');
-        setVerifying(false);
-        return;
-      }
-
-      // Check if recovery code exists and is unused
-      const { data: codes, error: fetchError } = await supabase
-        .from('mfa_recovery_codes')
-        .select('*')
-        .eq('user_id', user.id)
-        .is('used_at', null);
-
-      if (fetchError) {
-        setError('Failed to verify recovery code');
-        setVerifying(false);
-        return;
-      }
-
-      // Simple hash comparison (in production, use proper hashing)
-      const matchingCode = codes?.find(c => c.code_hash === normalizedCode);
-      
-      if (!matchingCode) {
-        setError('Invalid or already used recovery code');
-        setVerifying(false);
-        return;
-      }
-
-      // Mark recovery code as used
-      await supabase
-        .from('mfa_recovery_codes')
-        .update({ used_at: new Date().toISOString() })
-        .eq('id', matchingCode.id);
-
-      // Create MFA challenge and verify with a bypass
-      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId
+      // Use edge function for secure verification
+      const { data: verifyResult, error: verifyError } = await supabase.functions.invoke('hash-recovery-code', {
+        body: { action: 'verify', code: recoveryCode }
       });
 
-      if (challengeError) {
-        // Recovery code was valid, proceed anyway
-        onSuccess();
+      if (verifyError || !verifyResult?.valid) {
+        setError(verifyResult?.error || 'Invalid or already used recovery code');
+        setVerifying(false);
         return;
       }
 
-      // For recovery code flow, we still need to complete the MFA challenge
-      // The recovery code acts as a backup verification method
+      // Recovery code was valid, complete the challenge
       onSuccess();
       
     } catch (err) {
