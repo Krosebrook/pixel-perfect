@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Play, Clock, DollarSign, Zap, History, FileJson, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { MODEL_OPTIONS } from '@/lib/constants';
 
 interface ModelResult {
   model: string;
@@ -30,16 +31,164 @@ interface ModelResult {
   error: string | null;
 }
 
-const MODEL_OPTIONS = [
-  { key: 'gpt-5', name: 'GPT-5', provider: 'OpenAI', description: 'Most capable GPT model' },
-  { key: 'gpt-5-mini', name: 'GPT-5 Mini', provider: 'OpenAI', description: 'Faster, cost-efficient' },
-  { key: 'gpt-5-nano', name: 'GPT-5 Nano', provider: 'OpenAI', description: 'Fastest, cheapest' },
-  { key: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5', provider: 'Anthropic', description: 'Superior reasoning' },
-  { key: 'claude-opus-4-1', name: 'Claude Opus 4.1', provider: 'Anthropic', description: 'Highly intelligent' },
-  { key: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', description: 'Top-tier reasoning' },
-  { key: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', description: 'Balanced performance' },
-  { key: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'Google', description: 'Fast classification' },
-];
+// Memoized model selection item
+const ModelSelectionItem = memo(function ModelSelectionItem({
+  model,
+  isSelected,
+  onToggle,
+}: {
+  model: typeof MODEL_OPTIONS[number];
+  isSelected: boolean;
+  onToggle: (key: string) => void;
+}) {
+  const handleChange = useCallback(() => {
+    onToggle(model.key);
+  }, [model.key, onToggle]);
+
+  return (
+    <div className="flex items-start space-x-2" role="listitem">
+      <Checkbox
+        id={model.key}
+        checked={isSelected}
+        onCheckedChange={handleChange}
+        aria-describedby={`${model.key}-description`}
+      />
+      <div className="grid gap-1.5 leading-none">
+        <Label htmlFor={model.key} className="text-sm font-medium cursor-pointer">
+          {model.name}
+        </Label>
+        <p id={`${model.key}-description`} className="text-xs text-muted-foreground">
+          {model.provider} • {model.description}
+        </p>
+      </div>
+    </div>
+  );
+});
+
+// Memoized result card
+const ResultCard = memo(function ResultCard({
+  result,
+  modelInfo,
+}: {
+  result: ModelResult;
+  modelInfo: typeof MODEL_OPTIONS[number] | undefined;
+}) {
+  return (
+    <Card 
+      className={result.error ? 'border-destructive' : ''} 
+      role="article"
+      aria-label={`Results for ${modelInfo?.name || result.model}`}
+    >
+      <CardHeader>
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              {modelInfo?.name || result.model}
+              {result.error && <Badge variant="destructive">Error</Badge>}
+            </CardTitle>
+            <CardDescription>{modelInfo?.provider}</CardDescription>
+          </div>
+          <div className="flex gap-4 text-sm" aria-label="Performance metrics">
+            <div className="flex items-center gap-1">
+              <Clock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <span aria-label={`Latency: ${result.latency} milliseconds`}>{result.latency}ms</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <DollarSign className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <span aria-label={`Cost: ${result.cost.toFixed(6)} dollars`}>${result.cost.toFixed(6)}</span>
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {result.error ? (
+          <div className="text-destructive text-sm" role="alert">{result.error}</div>
+        ) : (
+          <>
+            <div className="prose prose-sm max-w-none mb-4">
+              <pre className="whitespace-pre-wrap break-words bg-muted p-4 rounded-lg text-sm">
+                {result.output}
+              </pre>
+            </div>
+            <div className="flex gap-4 text-xs text-muted-foreground" aria-label="Token usage">
+              <span>Input: {result.inputTokens}</span>
+              <span>Output: {result.outputTokens}</span>
+              <span>Total: {result.inputTokens + result.outputTokens}</span>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+});
+
+// Memoized history card
+const HistoryCard = memo(function HistoryCard({
+  run,
+}: {
+  run: {
+    id: string;
+    created_at: string;
+    variation_name?: string;
+    test_type?: string;
+    prompt_text: string;
+    total_latency_ms?: number;
+    total_cost?: number;
+    models: string[];
+  };
+}) {
+  const formattedDate = useMemo(
+    () => new Date(run.created_at).toLocaleString(),
+    [run.created_at]
+  );
+
+  return (
+    <Card role="article" aria-label={`Test run from ${formattedDate}`}>
+      <CardHeader>
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <CardDescription>
+                <time dateTime={run.created_at}>{formattedDate}</time>
+              </CardDescription>
+              {run.variation_name && (
+                <Badge variant="outline">{run.variation_name}</Badge>
+              )}
+              {run.test_type === 'ab_test' && (
+                <Badge variant="secondary">A/B Test</Badge>
+              )}
+            </div>
+            <CardTitle className="text-base line-clamp-2">
+              {run.prompt_text}
+            </CardTitle>
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-4 text-sm">
+              <div className="flex items-center gap-1">
+                <Clock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <span>{run.total_latency_ms}ms</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <DollarSign className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <span>${run.total_cost?.toFixed(6)}</span>
+              </div>
+            </div>
+            <ShareDialog testRunId={run.id} />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex gap-2 flex-wrap" role="list" aria-label="Models used">
+          {run.models.map((model: string) => (
+            <Badge key={model} variant="secondary" role="listitem">
+              {MODEL_OPTIONS.find(m => m.key === model)?.name || model}
+            </Badge>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+});
 
 export default function ModelComparison() {
   const { user } = useAuth();
@@ -50,7 +199,7 @@ export default function ModelComparison() {
   const [useStreaming, setUseStreaming] = useState(false);
   const [streamingResults, setStreamingResults] = useState<Map<string, Partial<ModelResult>>>(new Map());
   const [isStreaming, setIsStreaming] = useState(false);
-  const [abTestVariations, setABTestVariations] = useState<any[]>([]);
+  const [abTestVariations, setABTestVariations] = useState<unknown[]>([]);
   const [runningABTest, setRunningABTest] = useState(false);
 
   const { data: history } = useQuery({
@@ -84,14 +233,14 @@ export default function ModelComparison() {
     onSuccess: async (data) => {
       setResults(data.responses);
       
-      await supabase.from('model_test_runs').insert({
+      await supabase.from('model_test_runs').insert([{
         user_id: user!.id,
         prompt_text: prompt,
         models: selectedModels,
         responses: data.responses,
         total_cost: data.totalCost,
         total_latency_ms: data.totalLatency,
-      } as any);
+      }]);
 
       queryClient.invalidateQueries({ queryKey: ['model-comparison-history'] });
       toast.success('Comparison complete!');
@@ -101,7 +250,7 @@ export default function ModelComparison() {
     },
   });
 
-  const runStreamingComparison = async () => {
+  const runStreamingComparison = useCallback(async () => {
     if (selectedModels.length === 0) {
       toast.error('Please select at least one model');
       return;
@@ -179,14 +328,14 @@ export default function ModelComparison() {
         const totalCost = finalResults.reduce((sum, r) => sum + (r.cost || 0), 0);
         const totalLatency = Math.max(...finalResults.map(r => r.latency || 0));
         
-        supabase.from('model_test_runs').insert({
+        supabase.from('model_test_runs').insert([{
           user_id: user!.id,
           prompt_text: prompt,
           models: selectedModels,
-          responses: finalResults,
+          responses: JSON.parse(JSON.stringify(finalResults)),
           total_cost: totalCost,
           total_latency_ms: totalLatency,
-        } as any);
+        }]);
 
         queryClient.invalidateQueries({ queryKey: ['model-comparison-history'] });
         return prev;
@@ -199,9 +348,9 @@ export default function ModelComparison() {
     } finally {
       setIsStreaming(false);
     }
-  };
+  }, [prompt, selectedModels, user, queryClient]);
 
-  const runABTest = async (variations: any[]) => {
+  const runABTest = useCallback(async (variations: { prompt: string; name: string }[]) => {
     setRunningABTest(true);
     setABTestVariations(variations);
     
@@ -216,7 +365,7 @@ export default function ModelComparison() {
         if (error) throw error;
         if (!data.success) throw new Error(data.error || 'Comparison failed');
 
-        await supabase.from('model_test_runs').insert({
+        await supabase.from('model_test_runs').insert([{
           user_id: user!.id,
           prompt_text: variation.prompt,
           models: selectedModels,
@@ -226,7 +375,7 @@ export default function ModelComparison() {
           test_type: 'ab_test',
           variation_name: variation.name,
           parent_test_id: parentTestId,
-        } as any);
+        }]);
       }
 
       queryClient.invalidateQueries({ queryKey: ['model-comparison-history'] });
@@ -236,9 +385,16 @@ export default function ModelComparison() {
     } finally {
       setRunningABTest(false);
     }
-  };
+  }, [selectedModels, user, queryClient]);
 
-  const exportResults = (format: 'json' | 'csv') => {
+  const displayResults = useMemo(
+    () => useStreaming && streamingResults.size > 0 
+      ? Array.from(streamingResults.values()) as ModelResult[]
+      : results,
+    [useStreaming, streamingResults, results]
+  );
+
+  const exportResults = useCallback((format: 'json' | 'csv') => {
     if (!displayResults) return;
 
     if (format === 'json') {
@@ -275,72 +431,81 @@ export default function ModelComparison() {
       URL.revokeObjectURL(url);
       toast.success('Exported as CSV');
     }
-  };
+  }, [displayResults]);
 
-  const toggleModel = (modelKey: string) => {
+  const toggleModel = useCallback((modelKey: string) => {
     setSelectedModels(prev => prev.includes(modelKey) ? prev.filter(m => m !== modelKey) : [...prev, modelKey]);
-  };
+  }, []);
 
-  const displayResults = useStreaming && streamingResults.size > 0 
-    ? Array.from(streamingResults.values()) as ModelResult[]
-    : results;
+  const handlePromptChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setPrompt(e.target.value);
+  }, []);
+
+  const handlePromptSelect = useCallback((p: string, m: string[]) => {
+    setPrompt(p);
+    if (m.length > 0) setSelectedModels(m);
+  }, []);
+
+  const handleRunComparison = useCallback(() => {
+    if (useStreaming) {
+      runStreamingComparison();
+    } else {
+      runComparisonMutation.mutate();
+    }
+  }, [useStreaming, runStreamingComparison, runComparisonMutation]);
+
+  const isRunning = runComparisonMutation.isPending || isStreaming;
+  const canRun = !isRunning && prompt.trim() && selectedModels.length > 0;
 
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <div className="container mx-auto py-8 px-4">
-        <div className="mb-8">
+      <main className="container mx-auto py-8 px-4" role="main" aria-label="Model comparison">
+        <header className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Model Comparison</h1>
           <p className="text-muted-foreground">
             Compare AI models side-by-side with A/B testing, cost tracking, and AI insights
           </p>
-        </div>
+        </header>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_350px] mb-6">
           <div />
-          <div className="space-y-4">
+          <aside className="space-y-4" aria-label="Tracking tools">
             <CostTracker />
             <AIInsights />
-          </div>
+          </aside>
         </div>
 
         <Tabs defaultValue="compare" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="compare">
-              <Zap className="h-4 w-4 mr-2" />
+          <TabsList role="tablist" aria-label="Model comparison sections">
+            <TabsTrigger value="compare" role="tab">
+              <Zap className="h-4 w-4 mr-2" aria-hidden="true" />
               Compare
             </TabsTrigger>
-            <TabsTrigger value="history">
-              <History className="h-4 w-4 mr-2" />
+            <TabsTrigger value="history" role="tab">
+              <History className="h-4 w-4 mr-2" aria-hidden="true" />
               History
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="compare" className="space-y-6">
+          <TabsContent value="compare" className="space-y-6" role="tabpanel">
             <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm">Select Models</CardTitle>
                   <CardDescription>Choose models to compare</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {MODEL_OPTIONS.map((model) => (
-                    <div key={model.key} className="flex items-start space-x-2">
-                      <Checkbox
-                        id={model.key}
-                        checked={selectedModels.includes(model.key)}
-                        onCheckedChange={() => toggleModel(model.key)}
+                <CardContent>
+                  <div className="space-y-3" role="list" aria-label="Available models">
+                    {MODEL_OPTIONS.map((model) => (
+                      <ModelSelectionItem
+                        key={model.key}
+                        model={model}
+                        isSelected={selectedModels.includes(model.key)}
+                        onToggle={toggleModel}
                       />
-                      <div className="grid gap-1.5 leading-none">
-                        <Label htmlFor={model.key} className="text-sm font-medium cursor-pointer">
-                          {model.name}
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          {model.provider} • {model.description}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -353,10 +518,7 @@ export default function ModelComparison() {
                         <CardDescription>Test prompt across selected models</CardDescription>
                       </div>
                       <FavoritePromptsDialog
-                        onSelectPrompt={(p, m) => {
-                          setPrompt(p);
-                          if (m.length > 0) setSelectedModels(m);
-                        }}
+                        onSelectPrompt={handlePromptSelect}
                         currentPrompt={prompt}
                         currentModels={selectedModels}
                       />
@@ -366,25 +528,35 @@ export default function ModelComparison() {
                     <Textarea
                       placeholder="Enter your prompt here..."
                       value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
+                      onChange={handlePromptChange}
                       rows={6}
+                      aria-label="Prompt text"
                     />
                     
                     <div className="flex items-center space-x-2">
-                      <Switch id="streaming" checked={useStreaming} onCheckedChange={setUseStreaming} />
+                      <Switch 
+                        id="streaming" 
+                        checked={useStreaming} 
+                        onCheckedChange={setUseStreaming}
+                        aria-describedby="streaming-description"
+                      />
                       <Label htmlFor="streaming" className="cursor-pointer">
                         Real-time streaming
                       </Label>
+                      <span id="streaming-description" className="sr-only">
+                        Enable real-time streaming of model responses
+                      </span>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2" role="group" aria-label="Comparison actions">
                       <Button
-                        onClick={() => useStreaming ? runStreamingComparison() : runComparisonMutation.mutate()}
-                        disabled={runComparisonMutation.isPending || isStreaming || !prompt.trim() || selectedModels.length === 0}
+                        onClick={handleRunComparison}
+                        disabled={!canRun}
                         className="flex-1"
+                        aria-busy={isRunning}
                       >
-                        {(runComparisonMutation.isPending || isStreaming) ? 'Running...' : (
-                          <><Play className="h-4 w-4 mr-2" />Run Comparison</>
+                        {isRunning ? 'Running...' : (
+                          <><Play className="h-4 w-4 mr-2" aria-hidden="true" />Run Comparison</>
                         )}
                       </Button>
 
@@ -392,11 +564,19 @@ export default function ModelComparison() {
 
                       {displayResults && (
                         <>
-                          <Button variant="outline" onClick={() => exportResults('json')}>
-                            <FileJson className="h-4 w-4 mr-2" />JSON
+                          <Button 
+                            variant="outline" 
+                            onClick={() => exportResults('json')}
+                            aria-label="Export results as JSON"
+                          >
+                            <FileJson className="h-4 w-4 mr-2" aria-hidden="true" />JSON
                           </Button>
-                          <Button variant="outline" onClick={() => exportResults('csv')}>
-                            <FileText className="h-4 w-4 mr-2" />CSV
+                          <Button 
+                            variant="outline" 
+                            onClick={() => exportResults('csv')}
+                            aria-label="Export results as CSV"
+                          >
+                            <FileText className="h-4 w-4 mr-2" aria-hidden="true" />CSV
                           </Button>
                         </>
                       )}
@@ -409,117 +589,36 @@ export default function ModelComparison() {
                 )}
 
                 {displayResults && (
-                  <div className="grid gap-4">
-                    {displayResults.map((result) => {
-                      const modelInfo = MODEL_OPTIONS.find(m => m.key === result.model);
-                      
-                      return (
-                        <Card key={result.model} className={result.error ? 'border-destructive' : ''}>
-                          <CardHeader>
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <CardTitle className="flex items-center gap-2">
-                                  {modelInfo?.name || result.model}
-                                  {result.error && <Badge variant="destructive">Error</Badge>}
-                                </CardTitle>
-                                <CardDescription>{modelInfo?.provider}</CardDescription>
-                              </div>
-                              <div className="flex gap-4 text-sm">
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-4 w-4 text-muted-foreground" />
-                                  <span>{result.latency}ms</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                                  <span>${result.cost.toFixed(6)}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            {result.error ? (
-                              <div className="text-destructive text-sm">{result.error}</div>
-                            ) : (
-                              <>
-                                <div className="prose prose-sm max-w-none mb-4">
-                                  <pre className="whitespace-pre-wrap break-words bg-muted p-4 rounded-lg text-sm">
-                                    {result.output}
-                                  </pre>
-                                </div>
-                                <div className="flex gap-4 text-xs text-muted-foreground">
-                                  <span>Input: {result.inputTokens}</span>
-                                  <span>Output: {result.outputTokens}</span>
-                                  <span>Total: {result.inputTokens + result.outputTokens}</span>
-                                </div>
-                              </>
-                            )}
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
+                  <section className="grid gap-4" aria-label="Comparison results">
+                    {displayResults.map((result) => (
+                      <ResultCard
+                        key={result.model}
+                        result={result}
+                        modelInfo={MODEL_OPTIONS.find(m => m.key === result.model)}
+                      />
+                    ))}
+                  </section>
                 )}
               </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="history" className="space-y-4">
-            {history?.map((run) => (
-              <Card key={run.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CardDescription>
-                          {new Date(run.created_at).toLocaleString()}
-                        </CardDescription>
-                        {run.variation_name && (
-                          <Badge variant="outline">{run.variation_name}</Badge>
-                        )}
-                        {run.test_type === 'ab_test' && (
-                          <Badge variant="secondary">A/B Test</Badge>
-                        )}
-                      </div>
-                      <CardTitle className="text-base line-clamp-2">
-                        {run.prompt_text}
-                      </CardTitle>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex gap-4 text-sm">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span>{run.total_latency_ms}ms</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <DollarSign className="h-4 w-4 text-muted-foreground" />
-                          <span>${run.total_cost?.toFixed(6)}</span>
-                        </div>
-                      </div>
-                      <ShareDialog testRunId={run.id} />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-2 flex-wrap">
-                    {run.models.map((model: string) => (
-                      <Badge key={model} variant="secondary">
-                        {MODEL_OPTIONS.find(m => m.key === model)?.name || model}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {history?.length === 0 && (
-              <Card>
-                <CardContent className="py-8 text-center text-muted-foreground">
-                  No comparison history yet
-                </CardContent>
-              </Card>
-            )}
+          <TabsContent value="history" className="space-y-4" role="tabpanel">
+            <section aria-label="Test run history">
+              {history?.map((run) => (
+                <HistoryCard key={run.id} run={run} />
+              ))}
+              {history?.length === 0 && (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    No comparison history yet
+                  </CardContent>
+                </Card>
+              )}
+            </section>
           </TabsContent>
         </Tabs>
-      </div>
+      </main>
     </div>
   );
 }
