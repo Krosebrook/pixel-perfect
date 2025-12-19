@@ -33,3 +33,14 @@ jobs:
           onlyChanged: true
           exitZeroOnChanges: true
           autoAcceptChanges: 'main'
+          externals: |
+            - 'public/**'
+          skip: '@(renovate/**|dependabot/**)'
+      
+      - name: Upload Chromatic build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chromatic-build-log
+          path: .chromatic/
+          retention-days: 7
