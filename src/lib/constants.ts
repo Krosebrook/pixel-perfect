@@ -57,3 +57,23 @@ export const STORAGE_KEYS = {
   SESSION_TIMEOUT: 'session_timeout_ms',
   REMEMBER_DEVICE: 'remember_device',
 } as const;
+
+// API Configuration
+export const API = {
+  DEFAULT_TIMEOUT: 30000,
+  MAX_RETRIES: 3,
+  RETRY_DELAY: 1000,
+} as const;
+
+// Error Messages
+export const ERROR_MESSAGES = {
+  GENERIC: 'An unexpected error occurred. Please try again.',
+  NETWORK: 'Network error. Please check your connection.',
+} as const;
+
+// Query Keys
+export const QUERY_KEYS = {
+  PROMPTS: 'prompts',
+  PROMPT_DETAIL: 'promptDetail',
+  PROMPT_VERSIONS: 'promptVersions',
+} as const;
