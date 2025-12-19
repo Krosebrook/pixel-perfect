@@ -1,3 +1,15 @@
+// Model Configuration
+export const MODEL_OPTIONS = [
+  { key: 'gpt-5', name: 'GPT-5', provider: 'OpenAI' },
+  { key: 'gpt-5-mini', name: 'GPT-5 Mini', provider: 'OpenAI' },
+  { key: 'gpt-5-nano', name: 'GPT-5 Nano', provider: 'OpenAI' },
+  { key: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5', provider: 'Anthropic' },
+  { key: 'claude-opus-4-1', name: 'Claude Opus 4.1', provider: 'Anthropic' },
+  { key: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google' },
+  { key: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google' },
+  { key: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'Google' },
+] as const;
+
 export const TIME_RANGES = {
   SEVEN_DAYS: '7',
   THIRTY_DAYS: '30',
