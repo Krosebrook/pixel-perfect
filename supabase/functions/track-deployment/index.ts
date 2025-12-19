@@ -73,12 +73,21 @@ serve(async (req) => {
   try {
     // SECURITY: Validate authentication
     const deploymentSecret = Deno.env.get('DEPLOYMENT_SECRET');
-    const providedSecret = req.headers.get('x-deployment-secret');
     const authHeader = req.headers.get('Authorization');
+    const xDeploymentSecret = req.headers.get('x-deployment-secret');
+    const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'unknown';
+    const userAgent = req.headers.get('user-agent') || 'unknown';
     
-    // Allow either deployment secret (for CI/CD) or valid JWT (for admin users)
+    // Extract token from Authorization header (Bearer token)
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : null;
+    
+    // Check deployment secret from either header or Authorization Bearer
+    const providedSecret = xDeploymentSecret || bearerToken;
+    
     let isAuthorized = false;
+    let authMethod = 'none';
     
+    // Check deployment secret (for CI/CD)
     if (deploymentSecret && providedSecret) {
       // Timing-safe comparison
       if (deploymentSecret.length === providedSecret.length) {
@@ -87,17 +96,17 @@ serve(async (req) => {
           result |= deploymentSecret.charCodeAt(i) ^ providedSecret.charCodeAt(i);
         }
         isAuthorized = result === 0;
+        if (isAuthorized) authMethod = 'deployment_secret';
       }
     }
     
     // If no deployment secret match, check for admin JWT
-    if (!isAuthorized && authHeader) {
+    if (!isAuthorized && bearerToken && bearerToken !== deploymentSecret) {
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
       const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey);
       
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user }, error } = await supabaseAuth.auth.getUser(token);
+      const { data: { user }, error } = await supabaseAuth.auth.getUser(bearerToken);
       
       if (!error && user) {
         // Check if user is admin
@@ -112,16 +121,47 @@ serve(async (req) => {
           .maybeSingle();
         
         isAuthorized = !!roleData;
+        if (isAuthorized) authMethod = 'admin_jwt';
       }
     }
     
     if (!isAuthorized) {
-      console.warn('Unauthorized deployment tracking attempt');
+      // Log authentication failure for monitoring
+      const failureDetails = {
+        timestamp: new Date().toISOString(),
+        ip: clientIp,
+        userAgent: userAgent,
+        hasAuthHeader: !!authHeader,
+        hasXDeploymentSecret: !!xDeploymentSecret,
+        secretProvided: !!providedSecret,
+        secretLengthMatch: deploymentSecret ? providedSecret?.length === deploymentSecret.length : false,
+      };
+      
+      console.error('AUTH_FAILURE: Unauthorized deployment tracking attempt', JSON.stringify(failureDetails));
+      
+      // Track auth failure in database for alerting
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        
+        await supabase.from('security_audit_log').insert({
+          event_type: 'deployment_auth_failure',
+          ip_address: clientIp,
+          user_agent: userAgent,
+          metadata: failureDetails,
+        });
+      } catch (logError) {
+        console.error('Failed to log auth failure to database:', logError);
+      }
+      
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log(`Authorized via ${authMethod} from ${clientIp}`);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
