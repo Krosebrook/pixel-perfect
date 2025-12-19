@@ -55,7 +55,7 @@ export function useDailySpending(userId: string | undefined, timeRange: string) 
 
   return useQuery({
     queryKey: ['daily-spending', userId, timeRange],
-    queryFn: async () => {
+    queryFn: async (): Promise<{ date: string; cost: number; count: number }[]> => {
       if (!userId) return [];
 
       const { data: runs } = await supabase
@@ -68,15 +68,16 @@ export function useDailySpending(userId: string | undefined, timeRange: string) 
       if (!runs) return [];
 
       // Group by day
-      const grouped = runs.reduce((acc: any, run) => {
+      const grouped: Record<string, { date: string; cost: number; count: number }> = {};
+      
+      runs.forEach((run) => {
         const date = format(new Date(run.created_at), 'MMM dd');
-        if (!acc[date]) {
-          acc[date] = { date, cost: 0, count: 0 };
+        if (!grouped[date]) {
+          grouped[date] = { date, cost: 0, count: 0 };
         }
-        acc[date].cost += run.total_cost || 0;
-        acc[date].count += 1;
-        return acc;
-      }, {});
+        grouped[date].cost += run.total_cost || 0;
+        grouped[date].count += 1;
+      });
 
       return Object.values(grouped);
     },
@@ -89,7 +90,7 @@ export function useCostByEndpoint(userId: string | undefined, timeRange: string)
 
   return useQuery({
     queryKey: ['cost-by-endpoint', userId, timeRange],
-    queryFn: async () => {
+    queryFn: async (): Promise<{ name: string; value: number }[]> => {
       if (!userId) return [];
 
       const { data: runs } = await supabase
@@ -128,7 +129,7 @@ export function useHourlyDistribution(userId: string | undefined, timeRange: str
 
   return useQuery({
     queryKey: ['hourly-distribution', userId, timeRange],
-    queryFn: async () => {
+    queryFn: async (): Promise<{ hour: string; calls: number }[]> => {
       if (!userId) return [];
 
       const { data: runs } = await supabase
@@ -148,7 +149,7 @@ export function useHourlyDistribution(userId: string | undefined, timeRange: str
       });
 
       return Object.entries(hourCounts).map(([hour, calls]) => ({
-        hour: `${hour.padStart(2, '0')}:00`,
+        hour: String(hour).padStart(2, '0') + ':00',
         calls,
       }));
     },
