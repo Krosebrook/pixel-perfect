@@ -132,7 +132,7 @@ jobs:
         run: |
           curl -X POST "${{ secrets.VITE_SUPABASE_URL }}/functions/v1/track-deployment" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_SECRET }}" \
             -d '{
               "action": "update_deployment",
               "data": {
@@ -164,7 +164,7 @@ jobs:
         run: |
           curl -X POST "${{ secrets.VITE_SUPABASE_URL }}/functions/v1/track-deployment" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_SECRET }}" \
             -d '{
               "action": "track_incident",
               "data": {
@@ -241,7 +241,7 @@ jobs:
         run: |
           curl -X POST "${{ secrets.VITE_SUPABASE_URL }}/functions/v1/track-deployment" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_SECRET }}" \
             -d '{
               "action": "update_deployment",
               "data": {
