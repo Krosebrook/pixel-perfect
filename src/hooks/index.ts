@@ -14,6 +14,7 @@ export { useIsMobile } from './use-mobile';
 export { useAsync } from './useAsync';
 export { useDebounce, useDebouncedCallback } from './useDebounce';
 export { usePagination, type UsePaginationOptions, type UsePaginationReturn } from './usePagination';
+export { useFocusTrap, useArrowNavigation } from './useFocusTrap';
 export { useLocalStorage } from './useLocalStorage';
 export { useClipboard } from './useClipboard';
 export { 
