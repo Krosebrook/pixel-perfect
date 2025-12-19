@@ -63,6 +63,17 @@ export const API = {
   DEFAULT_TIMEOUT: 30000,
   MAX_RETRIES: 3,
   RETRY_DELAY: 1000,
+  DEFAULT_PAGE_SIZE: 20,
+  MAX_PAGE_SIZE: 100,
+} as const;
+
+// UI Configuration
+export const UI = {
+  SEARCH_DEBOUNCE_MS: 300,
+  TOAST_DURATION_MS: 5000,
+  ANIMATION_DURATION_MS: 200,
+  MOBILE_BREAKPOINT: 768,
+  TABLET_BREAKPOINT: 1024,
 } as const;
 
 // Error Messages
