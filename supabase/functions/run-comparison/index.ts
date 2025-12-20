@@ -317,14 +317,31 @@ Deno.serve(async (req) => {
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // Log detailed error server-side only
     console.error('Error in run-comparison function:', error);
     
-    const errorMessage = error instanceof z.ZodError 
-      ? 'Invalid input parameters'
-      : error.message === 'Unauthorized'
-      ? 'Unauthorized'
-      : error instanceof Error ? error.message : 'Internal server error';
+    // Sanitize error messages - never expose internal details to clients
+    let errorMessage = 'An error occurred while processing your request';
+    let statusCode = 500;
+    
+    if (error instanceof z.ZodError) {
+      errorMessage = 'Invalid input parameters';
+      statusCode = 400;
+    } else if (error instanceof Error) {
+      if (error.message === 'Unauthorized') {
+        errorMessage = 'Unauthorized';
+        statusCode = 401;
+      } else if (error.message.includes('API') || error.message.includes('rate_limit') || error.message.includes('quota')) {
+        // Sanitize API provider errors
+        errorMessage = 'External service temporarily unavailable';
+        statusCode = 503;
+      } else if (error.message.includes('not configured')) {
+        errorMessage = 'Service configuration error';
+        statusCode = 503;
+      }
+      // All other errors get generic message to prevent information leakage
+    }
     
     return new Response(
       JSON.stringify({ 
@@ -332,7 +349,7 @@ Deno.serve(async (req) => {
         error: errorMessage
       }),
       { 
-        status: error.message === 'Unauthorized' ? 401 : 500, 
+        status: statusCode, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
