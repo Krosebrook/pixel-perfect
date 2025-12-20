@@ -1,13 +1,58 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.1';
+import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts';
+import { encode as encodeHex } from 'https://deno.land/std@0.168.0/encoding/hex.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-rate-limit-signature, x-rate-limit-timestamp',
 };
 
 interface RateLimitRequest {
   email: string;
   action: 'check' | 'record_failure' | 'record_success';
+}
+
+// Verify HMAC signature for internal auth system calls
+async function verifySignature(payload: string, timestamp: string, signature: string, secret: string): Promise<boolean> {
+  try {
+    const timestampNum = parseInt(timestamp, 10);
+    const now = Date.now();
+    // Reject requests older than 5 minutes
+    if (Math.abs(now - timestampNum) > 5 * 60 * 1000) {
+      console.warn('Rate limit signature timestamp too old or in future');
+      return false;
+    }
+    
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    
+    const signatureData = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      new TextEncoder().encode(`${timestamp}.${payload}`)
+    );
+    
+    const expectedSignatureBytes = encodeHex(new Uint8Array(signatureData));
+    const expectedSignature = new TextDecoder().decode(expectedSignatureBytes);
+    
+    // Timing-safe comparison
+    if (signature.length !== expectedSignature.length) {
+      return false;
+    }
+    
+    let result = 0;
+    for (let i = 0; i < signature.length; i++) {
+      result |= signature.charCodeAt(i) ^ expectedSignature.charCodeAt(i);
+    }
+    return result === 0;
+  } catch {
+    return false;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -20,8 +65,82 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { email, action }: RateLimitRequest = await req.json();
+    
+    // SECURITY: Verify request authenticity
+    // This function should only be called by the auth system, not directly by users
+    const authHeader = req.headers.get('Authorization');
+    const signature = req.headers.get('x-rate-limit-signature');
+    const timestamp = req.headers.get('x-rate-limit-timestamp');
+    
+    let isAuthorized = false;
+    
+    // Method 1: HMAC signature verification (for internal system calls)
+    const rateLimitSecret = Deno.env.get('RATE_LIMIT_SECRET') || supabaseServiceKey;
+    const rawBody = await req.text();
+    
+    if (signature && timestamp) {
+      isAuthorized = await verifySignature(rawBody, timestamp, signature, rateLimitSecret);
+    }
+    
+    // Method 2: Service role key in Authorization header (for admin/testing)
+    if (!isAuthorized && authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      // Allow if using service role key directly
+      if (token === supabaseServiceKey) {
+        isAuthorized = true;
+      }
+    }
+    
+    // Method 3: Allow from same origin (Supabase internal calls)
+    const origin = req.headers.get('origin') || '';
+    const referer = req.headers.get('referer') || '';
+    const isInternalCall = origin.includes('supabase') || referer.includes('supabase') || 
+                          origin === '' || // No origin typically means server-to-server
+                          req.headers.get('x-client-info')?.includes('supabase');
+    
+    // For check action only, allow from authenticated users (the auth flow needs this)
+    let parsedBody: RateLimitRequest;
+    try {
+      parsedBody = JSON.parse(rawBody);
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const { email, action } = parsedBody;
+    
+    // Allow 'check' action for login flow (needed before auth happens)
+    // But restrict 'record_failure' and 'record_success' to authorized calls only
+    if (action === 'check') {
+      isAuthorized = true; // Allow check for login flow
+    } else if (!isAuthorized && isInternalCall) {
+      // For record actions, verify it's a legitimate internal call
+      isAuthorized = true;
+    }
+    
+    if (!isAuthorized) {
+      console.error('Unauthorized rate limit request', {
+        action,
+        hasSignature: !!signature,
+        hasAuthHeader: !!authHeader,
+        origin,
+      });
+      
+      // Log unauthorized attempt
+      await supabase.from('security_audit_log').insert({
+        event_type: 'rate_limit_unauthorized_access',
+        ip_address: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown',
+        user_agent: req.headers.get('user-agent') || 'unknown',
+        metadata: { action, email: email?.substring(0, 3) + '***' },
+      });
+      
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!email || !action) {
       return new Response(

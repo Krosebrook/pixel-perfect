@@ -14,6 +14,34 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    // SECURITY: Require authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('Missing authorization header for execute-scheduled-test');
+      return new Response(
+        JSON.stringify({ error: 'Authorization required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Verify the user
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+    
+    if (authError || !user) {
+      console.error('Invalid auth token for execute-scheduled-test:', authError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     const requestSchema = z.object({
       scheduledTestId: z.string().uuid()
     });
@@ -21,9 +49,7 @@ serve(async (req) => {
     const body = await req.json();
     const { scheduledTestId } = requestSchema.parse(body);
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Fetch scheduled test
     const { data: scheduledTest, error: fetchError } = await supabase
@@ -34,6 +60,29 @@ serve(async (req) => {
 
     if (fetchError || !scheduledTest) {
       throw new Error('Scheduled test not found');
+    }
+    
+    // SECURITY: Verify the user owns this scheduled test
+    if (scheduledTest.user_id !== user.id) {
+      console.error(`User ${user.id} attempted to execute scheduled test ${scheduledTestId} owned by ${scheduledTest.user_id}`);
+      
+      // Log unauthorized attempt
+      await supabase.from('security_audit_log').insert({
+        event_type: 'scheduled_test_unauthorized_access',
+        user_id: user.id,
+        email: user.email,
+        ip_address: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown',
+        user_agent: req.headers.get('user-agent') || 'unknown',
+        metadata: { 
+          attempted_test_id: scheduledTestId,
+          test_owner_id: scheduledTest.user_id 
+        },
+      });
+      
+      return new Response(
+        JSON.stringify({ error: 'Access denied' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Get prompt text
