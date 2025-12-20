@@ -2,6 +2,8 @@
  * Utility functions for error handling and reporting
  */
 
+import { captureException as sentryCaptureException, setContext } from '@/services/error-monitoring';
+
 export interface ErrorContext {
   userId?: string;
   route?: string;
@@ -11,8 +13,7 @@ export interface ErrorContext {
 }
 
 /**
- * Log error to monitoring service
- * TODO: Integrate with actual monitoring service (e.g., Sentry, LogRocket)
+ * Log error to monitoring service using Sentry
  */
 export function logErrorToService(
   error: Error,
@@ -26,15 +27,17 @@ export function logErrorToService(
   };
 
   if (import.meta.env.PROD) {
-    // In production, send to error monitoring service
-    console.error('Error logged:', {
-      message: error.message,
-      stack: error.stack,
-      context: errorContext,
+    // Set context for better debugging
+    setContext('errorContext', errorContext as unknown as Record<string, unknown>);
+    
+    // Send to Sentry
+    sentryCaptureException(error, {
+      timestamp: errorContext.timestamp,
+      userAgent: errorContext.userAgent,
+      route: errorContext.route,
+      userId: errorContext.userId,
+      additionalInfo: context.additionalInfo,
     });
-
-    // TODO: Send to actual service
-    // Example: Sentry.captureException(error, { contexts: { custom: errorContext } });
   } else {
     // In development, just log to console
     console.error('Development error:', error, errorContext);
