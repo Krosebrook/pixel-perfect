@@ -101,18 +101,20 @@ export default function Admin() {
     },
   });
 
-  if (checkingAdmin) {
+  // Show loading state until admin check fully completes to prevent UI exposure
+  if (checkingAdmin || isAdmin === undefined) {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="container mx-auto py-8 px-4">
-          <p>Loading...</p>
+        <div className="container mx-auto py-8 px-4 flex items-center justify-center">
+          <div className="animate-pulse text-muted-foreground">Verifying access...</div>
         </div>
       </div>
     );
   }
 
-  if (!isAdmin) {
+  // Redirect non-admin users - this happens after loading completes
+  if (isAdmin === false) {
     navigate('/');
     return null;
   }
