@@ -3,7 +3,7 @@ import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-
+import { captureException, addBreadcrumb } from '@/services/error-monitoring';
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
@@ -41,11 +41,17 @@ export class ErrorBoundary extends Component<Props, State> {
       errorInfo,
     });
 
-    // Log to error reporting service
-    if (import.meta.env.PROD) {
-      // TODO: Send to error monitoring service (e.g., Sentry)
-      console.error('Production error:', { error, errorInfo });
-    }
+    // Add breadcrumb for debugging
+    addBreadcrumb('Error boundary triggered', 'error', {
+      errorMessage: error.message,
+      componentStack: errorInfo.componentStack,
+    });
+
+    // Send to Sentry
+    captureException(error, {
+      componentStack: errorInfo.componentStack,
+      errorBoundary: true,
+    });
   }
 
   handleReset = () => {
