@@ -9,6 +9,7 @@ import { RateLimitWarning } from "@/components/RateLimitWarning";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { QueryErrorBoundary } from "@/components/QueryErrorBoundary";
 import { SessionTimeoutProvider } from "@/components/SessionTimeoutProvider";
+import { SentryTestButton } from "@/components/SentryTestButton";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Prompts from "./pages/Prompts";
@@ -46,6 +47,7 @@ const App = () => (
             <TooltipProvider>
               <Toaster />
               <Sonner />
+              <SentryTestButton />
             <BrowserRouter>
               <Routes>
             <Route path="/auth" element={<Auth />} />
