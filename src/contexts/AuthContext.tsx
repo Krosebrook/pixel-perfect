@@ -3,6 +3,7 @@ import { User, Session, AuthMFAEnrollResponse, Factor } from '@supabase/supabase
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useDeviceTracking } from '@/hooks/useDeviceTracking';
+import { setUser as setSentryUser } from '@/services/error-monitoring';
 
 interface MFAChallengeState {
   required: boolean;
@@ -53,6 +54,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Update Sentry user context (deferred to avoid blocking)
+        setTimeout(() => {
+          if (session?.user) {
+            setSentryUser({
+              id: session.user.id,
+              email: session.user.email,
+              username: session.user.user_metadata?.display_name
+            });
+          } else {
+            setSentryUser(null);
+          }
+        }, 0);
       }
     );
 
@@ -61,6 +75,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      
+      // Set initial Sentry user context
+      if (session?.user) {
+        setSentryUser({
+          id: session.user.id,
+          email: session.user.email,
+          username: session.user.user_metadata?.display_name
+        });
+      }
     });
 
     return () => subscription.unsubscribe();
