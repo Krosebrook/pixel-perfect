@@ -350,6 +350,32 @@ export function AuthForm() {
               </AlertDescription>
             </Alert>
           )}
+
+          {/* Show remaining attempts warning (not locked yet) */}
+          {rateLimitStatus && !rateLimitStatus.isLocked && rateLimitStatus.failedAttempts > 0 && (
+            <Alert className="mb-4 border-warning bg-warning/10">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <AlertDescription className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-warning">Login attempts remaining</span>
+                  <span className="font-mono font-bold text-warning">
+                    {rateLimitStatus.maxAttempts - rateLimitStatus.failedAttempts} of {rateLimitStatus.maxAttempts}
+                  </span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                  <div 
+                    className="h-full bg-warning transition-all duration-300"
+                    style={{ 
+                      width: `${((rateLimitStatus.maxAttempts - rateLimitStatus.failedAttempts) / rateLimitStatus.maxAttempts) * 100}%` 
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Your account will be temporarily locked after {rateLimitStatus.maxAttempts - rateLimitStatus.failedAttempts} more failed attempt{rateLimitStatus.maxAttempts - rateLimitStatus.failedAttempts !== 1 ? 's' : ''}.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
           
           <Tabs defaultValue="signin" className="w-full" onValueChange={clearErrors}>
             <TabsList className="grid w-full grid-cols-2">
