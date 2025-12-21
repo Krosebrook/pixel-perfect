@@ -199,8 +199,9 @@ export function AuthForm() {
       return;
     }
 
-    // Check reCAPTCHA
-    if (!recaptchaToken) {
+    // Check reCAPTCHA (only if configured)
+    const recaptchaRequired = !!import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+    if (recaptchaRequired && !recaptchaToken) {
       setGeneralError('Please complete the reCAPTCHA verification.');
       return;
     }
@@ -263,8 +264,9 @@ export function AuthForm() {
       return;
     }
 
-    // Check reCAPTCHA
-    if (!recaptchaToken) {
+    // Check reCAPTCHA (only if configured)
+    const recaptchaRequired = !!import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+    if (recaptchaRequired && !recaptchaToken) {
       setGeneralError('Please complete the reCAPTCHA verification.');
       return;
     }
@@ -423,7 +425,7 @@ export function AuthForm() {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isLoading || !recaptchaToken || (rateLimitStatus?.isLocked && lockoutCountdown > 0)}
+                disabled={isLoading || (!!import.meta.env.VITE_RECAPTCHA_SITE_KEY && !recaptchaToken) || (rateLimitStatus?.isLocked && lockoutCountdown > 0)}
               >
                   {isLoading ? 'Signing in...' : rateLimitStatus?.isLocked && lockoutCountdown > 0 ? `Locked (${formatLockoutTime(lockoutCountdown)})` : 'Sign In'}
                 </Button>
@@ -568,7 +570,7 @@ export function AuthForm() {
                   onExpire={handleRecaptchaExpire}
                 />
 
-                <Button type="submit" className="w-full" disabled={isLoading || !recaptchaToken}>
+                <Button type="submit" className="w-full" disabled={isLoading || (!!import.meta.env.VITE_RECAPTCHA_SITE_KEY && !recaptchaToken)}>
                   {isLoading ? 'Creating account...' : 'Sign Up'}
                 </Button>
                 
