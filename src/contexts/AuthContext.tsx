@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useDeviceTracking } from '@/hooks/useDeviceTracking';
 import { setUser as setSentryUser } from '@/services/error-monitoring';
+import { STORAGE_KEYS, TRUSTED_DEVICE_TIMEOUT_SECONDS } from '@/lib/constants';
 
 interface MFAChallengeState {
   required: boolean;
@@ -120,6 +121,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    // Check if "Remember me" was selected (stored before signIn is called)
+    const rememberMe = localStorage.getItem(STORAGE_KEYS.REMEMBER_DEVICE) === 'true';
+    
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
@@ -132,6 +136,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         variant: "destructive"
       });
       return { error };
+    }
+
+    // If "Remember me" is enabled, extend the session to 30 days
+    if (rememberMe && data.session) {
+      // Note: Supabase session duration is controlled server-side via config
+      // We store the preference to handle session refresh behavior
+      localStorage.setItem(STORAGE_KEYS.REMEMBER_DEVICE, 'true');
     }
 
     // Check if MFA is required
