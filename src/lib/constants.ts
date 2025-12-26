@@ -61,8 +61,9 @@ export const SESSION_TIMEOUT_OPTIONS = [
   { value: 60 * 60 * 1000, label: '1 hour' },
 ] as const;
 
-// Extended timeout for trusted devices (7 days)
-export const TRUSTED_DEVICE_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000;
+// Extended timeout for trusted devices (30 days - used with "Remember me" option)
+export const TRUSTED_DEVICE_TIMEOUT_MS = 30 * 24 * 60 * 60 * 1000;
+export const TRUSTED_DEVICE_TIMEOUT_SECONDS = 30 * 24 * 60 * 60; // 30 days in seconds
 
 // Local storage keys
 export const STORAGE_KEYS = {

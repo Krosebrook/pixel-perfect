@@ -16,10 +16,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle, CheckCircle, Github, Mail, AlertTriangle, Clock, Lock } from 'lucide-react';
+import { AlertCircle, CheckCircle, Mail, AlertTriangle, Clock, Lock } from 'lucide-react';
 import { STORAGE_KEYS } from '@/lib/constants';
 import { ReCaptcha, resetReCaptcha } from '@/components/ReCaptcha';
+import { SocialLoginSection } from '@/components/SocialLoginSection';
+import { RememberMeCheckbox } from '@/components/RememberMeCheckbox';
 
 interface RateLimitStatus {
   isLocked: boolean;
@@ -65,10 +66,8 @@ interface ValidationErrors {
 }
 
 export function AuthForm() {
-  const { signIn, signUp, signInWithGoogle, signInWithGitHub, signInWithAzure, signInWithApple, resetPassword, resendVerificationEmail } = useAuth();
+  const { signIn, signUp, resetPassword, resendVerificationEmail } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<'google' | 'github' | 'azure' | 'apple' | null>(null);
-  const [oauthError, setOauthError] = useState<string | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [forgotPasswordError, setForgotPasswordError] = useState<string | null>(null);
@@ -420,25 +419,15 @@ export function AuthForm() {
                   )}
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="remember-device"
-                      checked={rememberDevice}
-                      onCheckedChange={(checked) => setRememberDevice(checked === true)}
-                    />
-                    <div className="grid gap-0.5">
-                      <Label htmlFor="remember-device" className="text-sm cursor-pointer">
-                        Remember this device
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        Extends session to 7 days
-                      </p>
-                    </div>
-                  </div>
+                <div className="flex items-center justify-between gap-4">
+                  <RememberMeCheckbox
+                    checked={rememberDevice}
+                    onCheckedChange={setRememberDevice}
+                    disabled={isLoading}
+                  />
                   <button
                     type="button"
-                    className="text-sm text-primary hover:underline"
+                    className="shrink-0 text-sm text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     onClick={() => setShowForgotPassword(true)}
                   >
                     Forgot password?
@@ -458,150 +447,7 @@ export function AuthForm() {
                   {isLoading ? 'Signing in...' : rateLimitStatus?.isLocked && lockoutCountdown > 0 ? `Locked (${formatLockoutTime(lockoutCountdown)})` : 'Sign In'}
                 </Button>
                 
-                <div className="relative my-4">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-                  </div>
-                </div>
-                
-                {oauthError && (
-                  <Alert variant="destructive" className="mb-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{oauthError}</AlertDescription>
-                  </Alert>
-                )}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={async () => {
-                    setOauthError(null);
-                    setOauthLoading('google');
-                    const { error } = await signInWithGoogle();
-                    if (error) {
-                      setOauthError(error.message || 'Failed to sign in with Google');
-                      setOauthLoading(null);
-                    }
-                  }}
-                  disabled={isLoading || oauthLoading !== null}
-                >
-                  {oauthLoading === 'google' ? (
-                    <svg className="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  ) : (
-                    <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-                      <path
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                        fill="#4285F4"
-                      />
-                      <path
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                        fill="#34A853"
-                      />
-                      <path
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                        fill="#FBBC05"
-                      />
-                      <path
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                        fill="#EA4335"
-                      />
-                    </svg>
-                  )}
-                  {oauthLoading === 'google' ? 'Connecting...' : 'Continue with Google'}
-                </Button>
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={async () => {
-                    setOauthError(null);
-                    setOauthLoading('github');
-                    const { error } = await signInWithGitHub();
-                    if (error) {
-                      setOauthError(error.message || 'Failed to sign in with GitHub');
-                      setOauthLoading(null);
-                    }
-                  }}
-                  disabled={isLoading || oauthLoading !== null}
-                >
-                  {oauthLoading === 'github' ? (
-                    <svg className="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  ) : (
-                    <Github className="mr-2 h-4 w-4" />
-                  )}
-                  {oauthLoading === 'github' ? 'Connecting...' : 'Continue with GitHub'}
-                </Button>
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={async () => {
-                    setOauthError(null);
-                    setOauthLoading('azure');
-                    const { error } = await signInWithAzure();
-                    if (error) {
-                      setOauthError(error.message || 'Failed to sign in with Microsoft');
-                      setOauthLoading(null);
-                    }
-                  }}
-                  disabled={isLoading || oauthLoading !== null}
-                >
-                  {oauthLoading === 'azure' ? (
-                    <svg className="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  ) : (
-                    <svg className="mr-2 h-4 w-4" viewBox="0 0 23 23">
-                      <path fill="#f3f3f3" d="M0 0h23v23H0z"/>
-                      <path fill="#f35325" d="M1 1h10v10H1z"/>
-                      <path fill="#81bc06" d="M12 1h10v10H12z"/>
-                      <path fill="#05a6f0" d="M1 12h10v10H1z"/>
-                      <path fill="#ffba08" d="M12 12h10v10H12z"/>
-                    </svg>
-                  )}
-                  {oauthLoading === 'azure' ? 'Connecting...' : 'Continue with Microsoft'}
-                </Button>
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={async () => {
-                    setOauthError(null);
-                    setOauthLoading('apple');
-                    const { error } = await signInWithApple();
-                    if (error) {
-                      setOauthError(error.message || 'Failed to sign in with Apple');
-                      setOauthLoading(null);
-                    }
-                  }}
-                  disabled={isLoading || oauthLoading !== null}
-                >
-                  {oauthLoading === 'apple' ? (
-                    <svg className="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  ) : (
-                    <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                    </svg>
-                  )}
-                  {oauthLoading === 'apple' ? 'Connecting...' : 'Continue with Apple'}
-                </Button>
+                <SocialLoginSection disabled={isLoading} />
               </form>
             </TabsContent>
             
@@ -669,150 +515,7 @@ export function AuthForm() {
                   {isLoading ? 'Creating account...' : 'Sign Up'}
                 </Button>
                 
-                <div className="relative my-4">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-                  </div>
-                </div>
-                
-                {oauthError && (
-                  <Alert variant="destructive" className="mb-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{oauthError}</AlertDescription>
-                  </Alert>
-                )}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={async () => {
-                    setOauthError(null);
-                    setOauthLoading('google');
-                    const { error } = await signInWithGoogle();
-                    if (error) {
-                      setOauthError(error.message || 'Failed to sign in with Google');
-                      setOauthLoading(null);
-                    }
-                  }}
-                  disabled={isLoading || oauthLoading !== null}
-                >
-                  {oauthLoading === 'google' ? (
-                    <svg className="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  ) : (
-                    <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-                      <path
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                        fill="#4285F4"
-                      />
-                      <path
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                        fill="#34A853"
-                      />
-                      <path
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                        fill="#FBBC05"
-                      />
-                      <path
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                        fill="#EA4335"
-                      />
-                    </svg>
-                  )}
-                  {oauthLoading === 'google' ? 'Connecting...' : 'Continue with Google'}
-                </Button>
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={async () => {
-                    setOauthError(null);
-                    setOauthLoading('github');
-                    const { error } = await signInWithGitHub();
-                    if (error) {
-                      setOauthError(error.message || 'Failed to sign in with GitHub');
-                      setOauthLoading(null);
-                    }
-                  }}
-                  disabled={isLoading || oauthLoading !== null}
-                >
-                  {oauthLoading === 'github' ? (
-                    <svg className="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  ) : (
-                    <Github className="mr-2 h-4 w-4" />
-                  )}
-                  {oauthLoading === 'github' ? 'Connecting...' : 'Continue with GitHub'}
-                </Button>
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={async () => {
-                    setOauthError(null);
-                    setOauthLoading('azure');
-                    const { error } = await signInWithAzure();
-                    if (error) {
-                      setOauthError(error.message || 'Failed to sign in with Microsoft');
-                      setOauthLoading(null);
-                    }
-                  }}
-                  disabled={isLoading || oauthLoading !== null}
-                >
-                  {oauthLoading === 'azure' ? (
-                    <svg className="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  ) : (
-                    <svg className="mr-2 h-4 w-4" viewBox="0 0 23 23">
-                      <path fill="#f3f3f3" d="M0 0h23v23H0z"/>
-                      <path fill="#f35325" d="M1 1h10v10H1z"/>
-                      <path fill="#81bc06" d="M12 1h10v10H12z"/>
-                      <path fill="#05a6f0" d="M1 12h10v10H1z"/>
-                      <path fill="#ffba08" d="M12 12h10v10H12z"/>
-                    </svg>
-                  )}
-                  {oauthLoading === 'azure' ? 'Connecting...' : 'Continue with Microsoft'}
-                </Button>
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={async () => {
-                    setOauthError(null);
-                    setOauthLoading('apple');
-                    const { error } = await signInWithApple();
-                    if (error) {
-                      setOauthError(error.message || 'Failed to sign in with Apple');
-                      setOauthLoading(null);
-                    }
-                  }}
-                  disabled={isLoading || oauthLoading !== null}
-                >
-                  {oauthLoading === 'apple' ? (
-                    <svg className="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  ) : (
-                    <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                    </svg>
-                  )}
-                  {oauthLoading === 'apple' ? 'Connecting...' : 'Continue with Apple'}
-                </Button>
+                <SocialLoginSection disabled={isLoading} />
               </form>
             </TabsContent>
           </Tabs>
