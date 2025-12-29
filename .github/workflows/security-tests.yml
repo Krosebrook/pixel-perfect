@@ -40,7 +40,7 @@ jobs:
       
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: security-test-results
           path: supabase/functions/_tests/results/
@@ -70,7 +70,7 @@ jobs:
         run: npm audit --json > npm-audit-report.json || true
       
       - name: Upload audit report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: npm-audit-report
           path: npm-audit-report.json
