@@ -1,12 +1,14 @@
 /**
  * @fileoverview Social login buttons section with minimalist design.
- * Provides OAuth authentication options with loading states and error handling.
+ * Provides OAuth authentication options with loading states, error handling,
+ * and email verification reminders.
  */
 
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Github, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle, Github, Loader2, Mail, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 type OAuthProvider = 'google' | 'github' | 'azure' | 'apple';
@@ -20,9 +22,11 @@ export function SocialLoginSection({ disabled = false, className = '' }: SocialL
   const { signInWithGoogle, signInWithGitHub, signInWithAzure, signInWithApple } = useAuth();
   const [loadingProvider, setLoadingProvider] = useState<OAuthProvider | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showEmailVerificationReminder, setShowEmailVerificationReminder] = useState(false);
 
   const handleOAuthLogin = async (provider: OAuthProvider) => {
     setError(null);
+    setShowEmailVerificationReminder(false);
     setLoadingProvider(provider);
 
     const authFunctions = {
@@ -35,8 +39,17 @@ export function SocialLoginSection({ disabled = false, className = '' }: SocialL
     const { error: authError } = await authFunctions[provider]();
     
     if (authError) {
-      setError(authError.message || `Failed to sign in with ${provider}`);
+      // Check if this is a new user signup that needs email verification
+      if (authError.message?.includes('confirm') || authError.message?.includes('verify')) {
+        setShowEmailVerificationReminder(true);
+      } else {
+        setError(authError.message || `Failed to sign in with ${provider}`);
+      }
       setLoadingProvider(null);
+    } else {
+      // Show reminder for first-time social signups
+      // This helps users understand their account is linked to their social email
+      setShowEmailVerificationReminder(true);
     }
   };
 
@@ -63,6 +76,17 @@ export function SocialLoginSection({ disabled = false, className = '' }: SocialL
           </span>
         </div>
       </div>
+
+      {/* Email Verification Reminder */}
+      {showEmailVerificationReminder && (
+        <Alert className="border-primary/20 bg-primary/5" role="status">
+          <Mail className="h-4 w-4 text-primary" aria-hidden="true" />
+          <AlertTitle className="text-sm font-medium">Email Verification</AlertTitle>
+          <AlertDescription className="text-xs text-muted-foreground">
+            Your account is linked to your social login email. Please ensure you have access to this email for account recovery and important notifications.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Error Alert */}
       {error && (
@@ -175,14 +199,28 @@ export function SocialLoginSection({ disabled = false, className = '' }: SocialL
       {/* Privacy Notice */}
       <p className="text-center text-xs text-muted-foreground">
         By continuing, you agree to our{' '}
-        <a href="/terms" className="underline underline-offset-2 hover:text-foreground">
+        <Link 
+          to="/terms" 
+          className="underline underline-offset-2 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded"
+        >
           Terms of Service
-        </a>{' '}
+        </Link>{' '}
         and{' '}
-        <a href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+        <Link 
+          to="/privacy" 
+          className="underline underline-offset-2 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded"
+        >
           Privacy Policy
-        </a>
+        </Link>
       </p>
+
+      {/* Additional Info */}
+      <div className="flex items-start gap-2 rounded-md border border-border/50 bg-muted/30 p-3">
+        <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" aria-hidden="true" />
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Social login uses secure OAuth 2.0 authentication. We never receive or store your social account password.
+        </p>
+      </div>
     </section>
   );
 }
