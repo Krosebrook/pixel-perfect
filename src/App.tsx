@@ -33,6 +33,8 @@ import Settings from "./pages/Settings";
 import DeploymentMetrics from "./pages/DeploymentMetrics";
 import ResetPassword from "./pages/ResetPassword";
 import TestCoverage from "./pages/TestCoverage";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -73,6 +75,8 @@ const App = () => (
             <Route path="/deployment-metrics" element={<ProtectedRoute><DeploymentMetrics /></ProtectedRoute>} />
             <Route path="/test-coverage" element={<ProtectedRoute><TestCoverage /></ProtectedRoute>} />
             <Route path="/share/:token" element={<SharedTestRun />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
               </Routes>
