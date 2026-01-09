@@ -1,6 +1,6 @@
 /**
  * @fileoverview Authentication form with Zod validation and proper error handling.
- * Supports both sign-in and sign-up flows with input validation.
+ * Supports sign-in, sign-up, and magic link flows with input validation.
  * Includes rate limiting and account lockout protection.
  */
 
@@ -16,12 +16,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertCircle, CheckCircle, Mail, AlertTriangle, Clock, Lock } from 'lucide-react';
+import { AlertCircle, CheckCircle, Mail, AlertTriangle, Clock, Lock, Sparkles } from 'lucide-react';
 import { STORAGE_KEYS } from '@/lib/constants';
 import { ReCaptcha, resetReCaptcha } from '@/components/ReCaptcha';
 import { SocialLoginSection } from '@/components/SocialLoginSection';
 import { RememberMeCheckbox } from '@/components/RememberMeCheckbox';
 import { SignUpSuccessDialog } from '@/components/SignUpSuccessDialog';
+import { MagicLinkForm } from '@/components/MagicLinkForm';
 
 interface RateLimitStatus {
   isLocked: boolean;
@@ -87,6 +88,7 @@ export function AuthForm() {
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [rateLimitStatus, setRateLimitStatus] = useState<RateLimitStatus | null>(null);
   const [lockoutCountdown, setLockoutCountdown] = useState(0);
+  const [showMagicLink, setShowMagicLink] = useState(false);
 
   // Countdown timer for lockout
   useEffect(() => {
@@ -307,6 +309,7 @@ export function AuthForm() {
     setGeneralError(null);
     setEmailNotVerified(null);
     setRecaptchaToken(null);
+    setShowMagicLink(false);
     resetReCaptcha();
   };
 
@@ -394,70 +397,97 @@ export function AuthForm() {
             </TabsList>
             
             <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email</Label>
-                  <Input
-                    id="signin-email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={signInData.email}
-                    onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
-                    aria-invalid={!!signInErrors.email}
-                    aria-describedby={signInErrors.email ? 'signin-email-error' : undefined}
+              {showMagicLink ? (
+                <MagicLinkForm onBack={() => setShowMagicLink(false)} />
+              ) : (
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-email">Email</Label>
+                    <Input
+                      id="signin-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={signInData.email}
+                      onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
+                      aria-invalid={!!signInErrors.email}
+                      aria-describedby={signInErrors.email ? 'signin-email-error' : undefined}
+                    />
+                    {signInErrors.email && (
+                      <p id="signin-email-error" className="text-sm text-destructive">
+                        {signInErrors.email}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-password">Password</Label>
+                    <PasswordInput
+                      id="signin-password"
+                      value={signInData.password}
+                      onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
+                      aria-invalid={!!signInErrors.password}
+                      aria-describedby={signInErrors.password ? 'signin-password-error' : undefined}
+                    />
+                    {signInErrors.password && (
+                      <p id="signin-password-error" className="text-sm text-destructive">
+                        {signInErrors.password}
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center justify-between gap-4">
+                    <RememberMeCheckbox
+                      checked={rememberDevice}
+                      onCheckedChange={setRememberDevice}
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="button"
+                      className="shrink-0 text-sm text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      onClick={() => setShowForgotPassword(true)}
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+
+                  <ReCaptcha
+                    onVerify={handleRecaptchaVerify}
+                    onExpire={handleRecaptchaExpire}
                   />
-                  {signInErrors.email && (
-                    <p id="signin-email-error" className="text-sm text-destructive">
-                      {signInErrors.email}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
-                  <PasswordInput
-                    id="signin-password"
-                    value={signInData.password}
-                    onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                    aria-invalid={!!signInErrors.password}
-                    aria-describedby={signInErrors.password ? 'signin-password-error' : undefined}
-                  />
-                  {signInErrors.password && (
-                    <p id="signin-password-error" className="text-sm text-destructive">
-                      {signInErrors.password}
-                    </p>
-                  )}
-                </div>
-                
-                <div className="flex items-center justify-between gap-4">
-                  <RememberMeCheckbox
-                    checked={rememberDevice}
-                    onCheckedChange={setRememberDevice}
-                    disabled={isLoading}
-                  />
-                  <button
-                    type="button"
-                    className="shrink-0 text-sm text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    onClick={() => setShowForgotPassword(true)}
+
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={isLoading || (!!import.meta.env.VITE_RECAPTCHA_SITE_KEY && !recaptchaToken) || (rateLimitStatus?.isLocked && lockoutCountdown > 0)}
                   >
-                    Forgot password?
-                  </button>
-                </div>
+                    {isLoading ? 'Signing in...' : rateLimitStatus?.isLocked && lockoutCountdown > 0 ? `Locked (${formatLockoutTime(lockoutCountdown)})` : 'Sign In'}
+                  </Button>
 
-                <ReCaptcha
-                  onVerify={handleRecaptchaVerify}
-                  onExpire={handleRecaptchaExpire}
-                />
+                  {/* Magic Link Option */}
+                  <div className="relative py-2">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center">
+                      <span className="bg-card px-4 text-xs text-muted-foreground">
+                        or
+                      </span>
+                    </div>
+                  </div>
 
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={isLoading || (!!import.meta.env.VITE_RECAPTCHA_SITE_KEY && !recaptchaToken) || (rateLimitStatus?.isLocked && lockoutCountdown > 0)}
-              >
-                  {isLoading ? 'Signing in...' : rateLimitStatus?.isLocked && lockoutCountdown > 0 ? `Locked (${formatLockoutTime(lockoutCountdown)})` : 'Sign In'}
-                </Button>
-                
-                <SocialLoginSection disabled={isLoading} />
-              </form>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => setShowMagicLink(true)}
+                    disabled={isLoading}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Sign in with Magic Link
+                  </Button>
+                  
+                  <SocialLoginSection disabled={isLoading} />
+                </form>
+              )}
             </TabsContent>
             
             <TabsContent value="signup">

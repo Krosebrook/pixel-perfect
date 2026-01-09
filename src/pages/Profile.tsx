@@ -15,6 +15,7 @@ import { User, Shield, Star } from 'lucide-react';
 import { SandboxToggle } from '@/components/SandboxToggle';
 import { DataExportSection } from '@/components/DataExportSection';
 import { AccountDeletionSection } from '@/components/AccountDeletionSection';
+import { LinkedAccountsSection } from '@/components/LinkedAccountsSection';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -220,6 +221,9 @@ export default function Profile() {
             </Card>
 
             <SandboxToggle />
+
+            {/* Linked Accounts Section */}
+            <LinkedAccountsSection />
 
             {/* Data Export Section */}
             <DataExportSection />
