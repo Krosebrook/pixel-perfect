@@ -189,9 +189,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (error) {
+      // Provide user-friendly error messages
+      let description = error.message;
+      if (error.message?.includes('provider is not enabled')) {
+        description = 'Google sign-in is not configured. Please use email/password login.';
+      } else if (error.message?.includes('403')) {
+        description = 'Access denied by Google. Please try again or use email/password login.';
+      }
+      
       toast({
         title: "Google sign in failed",
-        description: error.message,
+        description,
         variant: "destructive"
       });
     }
@@ -199,68 +207,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
+  // Note: GitHub, Azure, and Apple OAuth are NOT supported in Lovable Cloud
+  // These methods return a clear error message to inform users
   const signInWithGitHub = async () => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        redirectTo: redirectUrl
-      }
+    const unsupportedError = { 
+      message: 'GitHub sign-in is not available. Please use Google sign-in or email/password.' 
+    };
+    toast({
+      title: "GitHub sign in unavailable",
+      description: unsupportedError.message,
+      variant: "destructive"
     });
-
-    if (error) {
-      toast({
-        title: "GitHub sign in failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-
-    return { error };
+    return { error: unsupportedError };
   };
 
   const signInWithAzure = async () => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'azure',
-      options: {
-        redirectTo: redirectUrl,
-        scopes: 'email profile openid'
-      }
+    const unsupportedError = { 
+      message: 'Microsoft sign-in is not available. Please use Google sign-in or email/password.' 
+    };
+    toast({
+      title: "Microsoft sign in unavailable",
+      description: unsupportedError.message,
+      variant: "destructive"
     });
-
-    if (error) {
-      toast({
-        title: "Microsoft sign in failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-
-    return { error };
+    return { error: unsupportedError };
   };
 
   const signInWithApple = async () => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'apple',
-      options: {
-        redirectTo: redirectUrl
-      }
+    const unsupportedError = { 
+      message: 'Apple sign-in is not available. Please use Google sign-in or email/password.' 
+    };
+    toast({
+      title: "Apple sign in unavailable",
+      description: unsupportedError.message,
+      variant: "destructive"
     });
-
-    if (error) {
-      toast({
-        title: "Apple sign in failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-
-    return { error };
+    return { error: unsupportedError };
   };
 
   const resetPassword = async (email: string) => {
