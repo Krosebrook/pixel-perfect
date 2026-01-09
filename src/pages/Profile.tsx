@@ -13,6 +13,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { User, Shield, Star } from 'lucide-react';
 import { SandboxToggle } from '@/components/SandboxToggle';
+import { DataExportSection } from '@/components/DataExportSection';
+import { AccountDeletionSection } from '@/components/AccountDeletionSection';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -218,6 +220,12 @@ export default function Profile() {
             </Card>
 
             <SandboxToggle />
+
+            {/* Data Export Section */}
+            <DataExportSection />
+
+            {/* Account Deletion Section */}
+            <AccountDeletionSection />
           </div>
         </div>
       </div>

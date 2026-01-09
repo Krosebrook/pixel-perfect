@@ -16,6 +16,7 @@ import { DeviceManager } from '@/components/DeviceManager';
 import { SessionTimeoutSettings } from '@/components/SessionTimeoutSettings';
 import { useProfile } from '@/hooks/useProfile';
 import { useBudget, useUpdateBudget } from '@/hooks/useBudget';
+import { CookiePreferencesSection } from '@/components/CookiePreferencesSection';
 import { DEFAULT_ALERT_THRESHOLD } from '@/lib/constants';
 import { formatCurrency, formatPercentage } from '@/lib/formatters';
 
@@ -328,6 +329,9 @@ export default function Settings() {
               )}
             </CardContent>
           </Card>
+
+          {/* Cookie Preferences */}
+          <CookiePreferencesSection />
 
           <Button
             onClick={handleSave}
