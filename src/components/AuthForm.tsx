@@ -21,6 +21,7 @@ import { STORAGE_KEYS } from '@/lib/constants';
 import { ReCaptcha, resetReCaptcha } from '@/components/ReCaptcha';
 import { SocialLoginSection } from '@/components/SocialLoginSection';
 import { RememberMeCheckbox } from '@/components/RememberMeCheckbox';
+import { SignUpSuccessDialog } from '@/components/SignUpSuccessDialog';
 
 interface RateLimitStatus {
   isLocked: boolean;
@@ -77,6 +78,8 @@ export function AuthForm() {
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [emailNotVerified, setEmailNotVerified] = useState<string | null>(null);
   const [resendingVerification, setResendingVerification] = useState(false);
+  const [showSignUpSuccess, setShowSignUpSuccess] = useState(false);
+  const [signUpEmail, setSignUpEmail] = useState('');
   
   const [signInData, setSignInData] = useState({ email: '', password: '' });
   const [signUpData, setSignUpData] = useState({ email: '', password: '', displayName: '' });
@@ -288,6 +291,12 @@ export function AuthForm() {
       } else {
         setGeneralError(error.message);
       }
+    } else {
+      // Show success dialog with email verification instructions
+      setSignUpEmail(signUpData.email.trim());
+      setShowSignUpSuccess(true);
+      // Clear form data
+      setSignUpData({ email: '', password: '', displayName: '' });
     }
     setIsLoading(false);
   };
@@ -586,6 +595,13 @@ export function AuthForm() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Sign Up Success Dialog */}
+      <SignUpSuccessDialog
+        open={showSignUpSuccess}
+        email={signUpEmail}
+        onClose={() => setShowSignUpSuccess(false)}
+      />
     </div>
   );
 }

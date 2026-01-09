@@ -35,6 +35,7 @@ import ResetPassword from "./pages/ResetPassword";
 import TestCoverage from "./pages/TestCoverage";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import { CookieConsentBanner } from "./components/CookieConsentBanner";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -80,6 +81,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
               </Routes>
+              <CookieConsentBanner />
             </BrowserRouter>
           </TooltipProvider>
           </SessionTimeoutProvider>
