@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigation } from '@/components/Navigation';
+import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -102,20 +102,18 @@ export default function Profile() {
 
   if (!user || !profile) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navigation />
+      <AppLayout>
         <div className="container mx-auto py-8 px-4">
           <p>Loading...</p>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   const initials = (profile.display_name || user.email?.split('@')[0] || 'U').substring(0, 2).toUpperCase();
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
+    <AppLayout>
       <div className="container mx-auto py-8 px-4 max-w-4xl">
         <h1 className="text-3xl font-bold mb-8">Profile Settings</h1>
 
@@ -233,6 +231,6 @@ export default function Profile() {
           </div>
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Navigation } from '@/components/Navigation';
+import { AppLayout } from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -302,9 +302,7 @@ export default function Templates() {
   }, [templates, handleUseTemplate]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
-      
+    <AppLayout>
       <main className="container mx-auto px-4 py-8" role="main" aria-label="Prompt templates">
         <header className="mb-8">
           <h1 className="text-4xl font-bold mb-2 flex items-center gap-2">
@@ -427,6 +425,6 @@ export default function Templates() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </AppLayout>
   );
 }

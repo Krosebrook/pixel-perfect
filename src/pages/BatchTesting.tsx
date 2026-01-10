@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, memo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigation } from '@/components/Navigation';
+import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -385,8 +385,7 @@ function BatchTesting() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
+    <AppLayout>
       <main className="container mx-auto py-8 px-4" role="main" aria-label="Batch Prompt Testing">
         <header className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Batch Prompt Testing</h1>
@@ -565,7 +564,7 @@ function BatchTesting() {
           </div>
         </div>
       </main>
-    </div>
+    </AppLayout>
   );
 }
 

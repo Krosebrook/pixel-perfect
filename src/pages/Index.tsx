@@ -3,11 +3,11 @@ import { PromptForm } from "@/components/PromptForm";
 import { PromptOutput } from "@/components/PromptOutput";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigation } from "@/components/Navigation";
+import { AppLayout } from "@/components/AppLayout";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { toast } from "sonner";
 import type { PromptSpecObject, GeneratedPrompt } from "@/types/prompt";
-import { Sparkles, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 
 const Index = () => {
   const { user } = useAuth();
@@ -98,8 +98,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
+    <AppLayout>
       <div className="container mx-auto py-8 px-4">
         {/* Header */}
         <div className="text-center mb-12 space-y-4">
@@ -135,7 +134,7 @@ const Index = () => {
           <p>Built with Lovable • Powered by Lovable AI</p>
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 };
 
