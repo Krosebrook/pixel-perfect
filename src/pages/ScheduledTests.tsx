@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Navigation } from '@/components/Navigation';
+import { AppLayout } from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -146,9 +146,7 @@ export default function ScheduledTests() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
-      
+    <AppLayout>
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8 flex items-center justify-between">
           <div>
@@ -366,6 +364,6 @@ export default function ScheduledTests() {
           </Card>
         )}
       </main>
-    </div>
+    </AppLayout>
   );
 }

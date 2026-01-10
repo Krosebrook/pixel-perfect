@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigation } from '@/components/Navigation';
+import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -113,8 +113,7 @@ const PromptHeader = memo(function PromptHeader({
 
 const LoadingSkeleton = memo(function LoadingSkeleton() {
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
+    <AppLayout>
       <div className="container mx-auto py-8 px-4" role="status" aria-live="polite">
         <Skeleton className="h-10 w-32 mb-6" />
         <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
@@ -129,7 +128,7 @@ const LoadingSkeleton = memo(function LoadingSkeleton() {
         </div>
         <span className="sr-only">Loading prompt details...</span>
       </div>
-    </div>
+    </AppLayout>
   );
 });
 
@@ -273,18 +272,16 @@ function PromptDetail() {
 
   if (!prompt) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navigation />
+      <AppLayout>
         <main className="container mx-auto py-8 px-4" role="main">
           <p role="alert">Prompt not found</p>
         </main>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
+    <AppLayout>
       <main className="container mx-auto py-8 px-4" role="main" aria-label="Prompt Details">
         <Button 
           variant="ghost" 
@@ -371,7 +368,7 @@ function PromptDetail() {
           </aside>
         </div>
       </main>
-    </div>
+    </AppLayout>
   );
 }
 

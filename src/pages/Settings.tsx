@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigation } from '@/components/Navigation';
+import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -186,14 +186,13 @@ export default function Settings() {
   }, []);
 
   const loadingContent = useMemo(() => (
-    <div className="min-h-screen bg-background">
-      <Navigation />
+    <AppLayout>
       <main className="container mx-auto py-8 px-4" role="main">
         <p className="text-muted-foreground" role="status" aria-live="polite">
           Loading...
         </p>
       </main>
-    </div>
+    </AppLayout>
   ), []);
 
   if (isLoading || !profile) {
@@ -201,8 +200,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
+    <AppLayout>
       <main 
         className="container mx-auto py-8 px-4 max-w-4xl" 
         role="main" 
@@ -343,6 +341,6 @@ export default function Settings() {
           </Button>
         </div>
       </main>
-    </div>
+    </AppLayout>
   );
 }

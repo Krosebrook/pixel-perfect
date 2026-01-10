@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigation } from '@/components/Navigation';
+import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -104,12 +104,11 @@ export default function Admin() {
   // Show loading state until admin check fully completes to prevent UI exposure
   if (checkingAdmin || isAdmin === undefined) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navigation />
+      <AppLayout>
         <div className="container mx-auto py-8 px-4 flex items-center justify-center">
           <div className="animate-pulse text-muted-foreground">Verifying access...</div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
@@ -120,8 +119,7 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
+    <AppLayout>
       <div className="container mx-auto py-8 px-4">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
@@ -228,6 +226,6 @@ export default function Admin() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </AppLayout>
   );
 }

@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, memo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigation } from '@/components/Navigation';
+import { AppLayout } from '@/components/AppLayout';
 import { FavoritePromptsDialog } from '@/components/FavoritePromptsDialog';
 import { ComparisonChart } from '@/components/ComparisonChart';
 import { ABTestDialog } from '@/components/ABTestDialog';
@@ -458,8 +458,7 @@ export default function ModelComparison() {
   const canRun = !isRunning && prompt.trim() && selectedModels.length > 0;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
+    <AppLayout>
       <main className="container mx-auto py-8 px-4" role="main" aria-label="Model comparison">
         <header className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Model Comparison</h1>
@@ -619,6 +618,6 @@ export default function ModelComparison() {
           </TabsContent>
         </Tabs>
       </main>
-    </div>
+    </AppLayout>
   );
 }
