@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { usePrompts, useUpdatePrompt } from '@/hooks/usePrompts';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { EmptyState } from '@/components/EmptyState';
 import { useDebouncedCallback } from '@/hooks/useDebounce';
 
 // ============================================================================
@@ -365,7 +366,7 @@ function Prompts() {
 
               <TabsContent value="all" className="space-y-4 mt-6" role="tabpanel" aria-label="All prompts">
                 {allPrompts.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">No prompts found</p>
+                  <EmptyState variant="prompts" onAction={handleCreateNew} />
                 ) : (
                   allPrompts.map((prompt) => (
                     <PromptCard
@@ -380,7 +381,12 @@ function Prompts() {
 
               <TabsContent value="my" className="space-y-4 mt-6" role="tabpanel" aria-label="My prompts">
                 {myPrompts.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">You haven't created any prompts yet</p>
+                  <EmptyState 
+                    variant="prompts" 
+                    title="No prompts created yet"
+                    description="You haven't created any prompts. Start by creating your first one!"
+                    onAction={handleCreateNew}
+                  />
                 ) : (
                   myPrompts.map((prompt) => (
                     <CompactPromptCard key={prompt.id} prompt={prompt} />
@@ -390,7 +396,13 @@ function Prompts() {
 
               <TabsContent value="featured" className="space-y-4 mt-6" role="tabpanel" aria-label="Featured prompts">
                 {featuredPrompts.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">No featured prompts</p>
+                  <EmptyState 
+                    variant="prompts" 
+                    title="No featured prompts"
+                    description="Featured prompts from the community will appear here. Check back soon!"
+                    actionLabel="Browse All Prompts"
+                    actionHref="/prompts"
+                  />
                 ) : (
                   featuredPrompts.map((prompt) => (
                     <Card key={prompt.id}>
