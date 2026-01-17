@@ -3,7 +3,6 @@
  * Extends user session duration to 30 days when checked.
  */
 
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Shield } from 'lucide-react';
 
@@ -26,14 +25,17 @@ export function RememberMeCheckbox({
 }: RememberMeCheckboxProps) {
   return (
     <div className="flex items-start gap-3 rounded-lg border border-border/50 bg-muted/30 p-3 transition-colors hover:bg-muted/50">
-      <Checkbox
-        id="remember-me"
-        checked={checked}
-        onCheckedChange={(value) => onCheckedChange(value === true)}
-        disabled={disabled}
-        className="mt-0.5"
-        aria-describedby="remember-me-description"
-      />
+      <div className="flex items-center h-5">
+        <input
+          type="checkbox"
+          id="remember-me"
+          checked={checked}
+          onChange={(e) => onCheckedChange(e.target.checked)}
+          disabled={disabled}
+          className="h-4 w-4 rounded border-primary text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 accent-primary"
+          aria-describedby="remember-me-description"
+        />
+      </div>
       <div className="grid gap-1">
         <Label 
           htmlFor="remember-me" 

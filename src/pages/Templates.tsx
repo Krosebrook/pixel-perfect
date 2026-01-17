@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Sparkles, TrendingUp, FileText } from 'lucide-react';
+import { Search, Sparkles, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from '@/hooks/useDebounce';
+import { EmptyState } from '@/components/EmptyState';
 
 interface TemplateVariable {
   name: string;
@@ -375,13 +376,11 @@ export default function Templates() {
         )}
 
         {templates?.length === 0 && (
-          <Card className="p-12 text-center" role="status">
-            <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" aria-hidden="true" />
-            <h3 className="text-lg font-semibold mb-2">No templates found</h3>
-            <p className="text-muted-foreground">
-              Try adjusting your search or filters
-            </p>
-          </Card>
+          <EmptyState 
+            variant="templates"
+            title="No templates found"
+            description="Try adjusting your search or filters, or check back later for new templates."
+          />
         )}
       </main>
 
