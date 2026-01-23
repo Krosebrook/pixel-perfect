@@ -2,7 +2,6 @@ import { useCallback, useMemo, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -138,7 +137,6 @@ const LoadingSkeleton = memo(function LoadingSkeleton() {
 
 function PromptDetail() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { copy } = useClipboard();
@@ -150,10 +148,8 @@ function PromptDetail() {
 
   const versions = prompt?.versions || [];
 
-  const isOwner = useMemo(
-    () => prompt?.created_by === user?.id,
-    [prompt?.created_by, user?.id]
-  );
+  // Internal app - everyone is owner
+  const isOwner = true;
 
   // Memoized handlers
   const handleBack = useCallback(() => {
@@ -161,12 +157,9 @@ function PromptDetail() {
   }, [navigate]);
 
   const trackUsage = useCallback(async () => {
-    if (!id || !user) return;
-    await supabase.from('prompt_usage').insert({
-      prompt_id: id,
-      user_id: user.id,
-    });
-  }, [id, user]);
+    if (!id) return;
+    // Internal app - skip usage tracking
+  }, [id]);
 
   const handleCopy = useCallback(async () => {
     if (!prompt) return;
@@ -176,9 +169,9 @@ function PromptDetail() {
   }, [prompt, copy, trackUsage]);
 
   const handleFork = useCallback(() => {
-    if (!prompt || !user) return;
+    if (!prompt) return;
     forkMutation.mutate(
-      { originalPromptId: prompt.id, userId: user.id },
+      { originalPromptId: prompt.id, userId: '00000000-0000-0000-0000-000000000000' },
       {
         onSuccess: (result) => {
           if (result) {
@@ -191,7 +184,7 @@ function PromptDetail() {
         },
       }
     );
-  }, [prompt, user, forkMutation, navigate]);
+  }, [prompt, forkMutation, navigate]);
 
   const handleDelete = useCallback(() => {
     if (!id) return;

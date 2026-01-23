@@ -1,8 +1,5 @@
 import { useLocation } from "react-router-dom";
 import { NavLink } from "./NavLink";
-import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import {
   Zap,
   Library,
@@ -138,25 +135,9 @@ function NavGroup({ label, items, defaultOpen = false }: NavGroupProps) {
 }
 
 export function AppSidebar() {
-  const { user } = useAuth();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-
-  const { data: isAdmin } = useQuery({
-    queryKey: ["user-role", user?.id],
-    queryFn: async () => {
-      if (!user) return false;
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .single();
-      return !!data;
-    },
-    enabled: !!user,
-  });
 
   return (
     <Sidebar collapsible="icon">
@@ -190,7 +171,7 @@ export function AppSidebar() {
           <NavGroup label="Analytics" items={analyticsGroup} />
           <NavGroup label="API" items={apiGroup} />
           <NavGroup label="Team" items={teamGroup} />
-          {isAdmin && <NavGroup label="Admin" items={adminGroup} />}
+          <NavGroup label="Admin" items={adminGroup} />
         </div>
       </SidebarContent>
 

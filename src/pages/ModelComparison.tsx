@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo, memo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/AppLayout';
 import { FavoritePromptsDialog } from '@/components/FavoritePromptsDialog';
 import { ComparisonChart } from '@/components/ComparisonChart';
@@ -191,7 +190,6 @@ const HistoryCard = memo(function HistoryCard({
 });
 
 export default function ModelComparison() {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [prompt, setPrompt] = useState('');
   const [selectedModels, setSelectedModels] = useState<string[]>(['gpt-5', 'claude-sonnet-4-5', 'gemini-2.5-flash']);
@@ -208,14 +206,12 @@ export default function ModelComparison() {
       const { data, error } = await supabase
         .from('model_test_runs')
         .select('*')
-        .eq('user_id', user!.id)
         .order('created_at', { ascending: false })
         .limit(10);
       
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
   });
 
   const runComparisonMutation = useMutation({
@@ -234,7 +230,7 @@ export default function ModelComparison() {
       setResults(data.responses);
       
       await supabase.from('model_test_runs').insert([{
-        user_id: user!.id,
+        user_id: '00000000-0000-0000-0000-000000000000',
         prompt_text: prompt,
         models: selectedModels,
         responses: data.responses,
@@ -329,7 +325,7 @@ export default function ModelComparison() {
         const totalLatency = Math.max(...finalResults.map(r => r.latency || 0));
         
         supabase.from('model_test_runs').insert([{
-          user_id: user!.id,
+          user_id: '00000000-0000-0000-0000-000000000000',
           prompt_text: prompt,
           models: selectedModels,
           responses: JSON.parse(JSON.stringify(finalResults)),
@@ -348,7 +344,7 @@ export default function ModelComparison() {
     } finally {
       setIsStreaming(false);
     }
-  }, [prompt, selectedModels, user, queryClient]);
+  }, [prompt, selectedModels, queryClient]);
 
   const runABTest = useCallback(async (variations: { prompt: string; name: string }[]) => {
     setRunningABTest(true);
@@ -366,7 +362,7 @@ export default function ModelComparison() {
         if (!data.success) throw new Error(data.error || 'Comparison failed');
 
         await supabase.from('model_test_runs').insert([{
-          user_id: user!.id,
+          user_id: '00000000-0000-0000-0000-000000000000',
           prompt_text: variation.prompt,
           models: selectedModels,
           responses: data.responses,
@@ -385,7 +381,7 @@ export default function ModelComparison() {
     } finally {
       setRunningABTest(false);
     }
-  }, [selectedModels, user, queryClient]);
+  }, [selectedModels, queryClient]);
 
   const displayResults = useMemo(
     () => useStreaming && streamingResults.size > 0 
