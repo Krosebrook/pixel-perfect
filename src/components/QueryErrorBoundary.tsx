@@ -43,9 +43,6 @@ export class QueryErrorBoundary extends Component<Props, State> {
     if (message.includes('network') || message.includes('fetch')) {
       return 'Unable to connect to the server. Please check your internet connection.';
     }
-    if (message.includes('auth') || message.includes('unauthorized')) {
-      return 'Authentication error. Please sign in again.';
-    }
     if (message.includes('rate limit')) {
       return 'Too many requests. Please wait a moment and try again.';
     }
