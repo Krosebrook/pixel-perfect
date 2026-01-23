@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo, memo } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -237,7 +236,6 @@ const SearchInput = memo(function SearchInput({
 // ============================================================================
 
 function Prompts() {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -275,8 +273,8 @@ function Prompts() {
     },
   });
 
-  // Use the service layer hook for prompts
-  const { data: prompts, isLoading, refetch } = usePrompts(user?.id || '', {
+  // Use the service layer hook for prompts - internal app, no user filtering
+  const { data: prompts, isLoading, refetch } = usePrompts('', {
     categoryId: selectedCategory || undefined,
     search: debouncedSearch || undefined,
   });
@@ -298,10 +296,10 @@ function Prompts() {
     }
   }, [updatePrompt, refetch]);
 
-  // Memoized filtered lists
+  // Memoized filtered lists - all prompts shown in internal app
   const myPrompts = useMemo(
-    () => prompts?.filter(p => p.created_by === user?.id) || [],
-    [prompts, user?.id]
+    () => prompts || [],
+    [prompts]
   );
 
   const featuredPrompts = useMemo(
@@ -372,7 +370,7 @@ function Prompts() {
                     <PromptCard
                       key={prompt.id}
                       prompt={prompt as any}
-                      isOwner={prompt.created_by === user?.id}
+                      isOwner={true}
                       onToggleVisibility={toggleVisibility}
                     />
                   ))

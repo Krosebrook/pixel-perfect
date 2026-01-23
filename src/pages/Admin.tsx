@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,25 +14,12 @@ import { useNavigate } from 'react-router-dom';
 type AppRole = 'admin' | 'moderator' | 'user';
 
 export default function Admin() {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Check if user is admin
-  const { data: isAdmin, isLoading: checkingAdmin } = useQuery({
-    queryKey: ['is-admin', user?.id],
-    queryFn: async () => {
-      if (!user) return false;
-      const { data } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .single();
-      return !!data;
-    },
-    enabled: !!user,
-  });
+  // Internal app - always admin access
+  const isAdmin = true;
+  const checkingAdmin = false;
 
   const { data: users } = useQuery({
     queryKey: ['admin-users'],
@@ -53,10 +39,9 @@ export default function Admin() {
 
       return profiles.map(profile => ({
         ...profile,
-        roles: roles.filter(r => r.user_id === profile.id).map(r => r.role),
+        roles: roles?.filter(r => r.user_id === profile.id).map(r => r.role) || [],
       }));
     },
-    enabled: isAdmin === true,
   });
 
   const { data: stats } = useQuery({
@@ -74,7 +59,6 @@ export default function Admin() {
         totalCategories: categoriesResult.count || 0,
       };
     },
-    enabled: isAdmin === true,
   });
 
   const updateRoleMutation = useMutation({
@@ -111,12 +95,7 @@ export default function Admin() {
       </AppLayout>
     );
   }
-
-  // Redirect non-admin users - this happens after loading completes
-  if (isAdmin === false) {
-    navigate('/');
-    return null;
-  }
+  // Internal app - always allow admin access
 
   return (
     <AppLayout>
@@ -183,7 +162,7 @@ export default function Admin() {
                       {userItem.display_name || 'Anonymous'}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {userItem.id === user?.id && '(You)'}
+                      {userItem.id}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -204,7 +183,6 @@ export default function Admin() {
                             role: value as AppRole 
                           })
                         }
-                        disabled={userItem.id === user?.id}
                       >
                         <SelectTrigger className="w-32">
                           <SelectValue />

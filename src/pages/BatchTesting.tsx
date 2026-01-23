@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo, memo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -232,7 +231,6 @@ const PromptInput = memo(function PromptInput({
 // ============================================================================
 
 function BatchTesting() {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [prompts, setPrompts] = useState<PromptItem[]>([{ id: crypto.randomUUID(), text: '' }]);
   const [selectedModels, setSelectedModels] = useState<string[]>(['gpt-5-mini', 'gemini-2.5-flash']);
@@ -246,12 +244,10 @@ function BatchTesting() {
       const { data, error } = await supabase
         .from('favorite_prompts')
         .select('*')
-        .eq('user_id', user!.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
   });
 
   // Memoized callbacks
@@ -325,15 +321,15 @@ function BatchTesting() {
         setResults([...batchResults]);
 
         // Save to database
-        await supabase.from('model_test_runs').insert({
-          user_id: user!.id,
+        await supabase.from('model_test_runs').insert([{
+          user_id: '00000000-0000-0000-0000-000000000000',
           prompt_text: prompt.text,
           models: selectedModels,
           responses: data.responses,
           total_cost: data.totalCost,
           total_latency_ms: data.totalLatency,
           test_type: 'batch',
-        } as any);
+        }]);
       } catch (error) {
         console.error('Batch test error:', error);
         batchResults.push({
@@ -356,7 +352,7 @@ function BatchTesting() {
     queryClient.invalidateQueries({ queryKey: ['model-comparison-history'] });
     setIsRunning(false);
     toast.success(`Batch test complete: ${batchResults.length} prompts tested`);
-  }, [prompts, selectedModels, user, queryClient]);
+  }, [prompts, selectedModels, queryClient]);
 
   // Memoized computed values
   const totalCost = useMemo(
