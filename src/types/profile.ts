@@ -4,6 +4,7 @@ export interface UserProfile {
   bio: string | null;
   avatar_url: string | null;
   environment_mode: string | null;
+  onboarding_completed: boolean | null;
   created_at: string;
   updated_at: string;
 }

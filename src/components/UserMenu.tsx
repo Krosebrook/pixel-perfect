@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useOnboarding } from '@/contexts/OnboardingContext';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,10 +10,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, HelpCircle } from 'lucide-react';
 
 export function UserMenu() {
   const { user, signOut } = useAuth();
+  const { startOnboarding } = useOnboarding();
 
   if (!user) return null;
 
@@ -41,6 +43,11 @@ export function UserMenu() {
         <DropdownMenuItem disabled>
           <User className="mr-2 h-4 w-4" />
           Profile (Coming soon)
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={startOnboarding}>
+          <HelpCircle className="mr-2 h-4 w-4" />
+          Restart Onboarding
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => signOut()}>

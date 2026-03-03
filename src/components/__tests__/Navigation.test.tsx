@@ -14,6 +14,12 @@ vi.mock('@/contexts/AuthContext', () => ({
   }),
 }));
 
+// Mock the OnboardingContext so UserMenu renders without a provider
+vi.mock('@/contexts/OnboardingContext', () => ({
+  useOnboarding: () => ({ startOnboarding: vi.fn() }),
+  OnboardingProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 describe('Navigation', () => {
   beforeEach(() => {
     vi.clearAllMocks();

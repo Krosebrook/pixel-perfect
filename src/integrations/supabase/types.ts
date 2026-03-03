@@ -628,6 +628,7 @@ export type Database = {
           display_name: string | null
           environment_mode: string | null
           id: string
+          onboarding_completed: boolean | null
           updated_at: string
         }
         Insert: {
@@ -637,6 +638,7 @@ export type Database = {
           display_name?: string | null
           environment_mode?: string | null
           id: string
+          onboarding_completed?: boolean | null
           updated_at?: string
         }
         Update: {
@@ -646,6 +648,7 @@ export type Database = {
           display_name?: string | null
           environment_mode?: string | null
           id?: string
+          onboarding_completed?: boolean | null
           updated_at?: string
         }
         Relationships: []

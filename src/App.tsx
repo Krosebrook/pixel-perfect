@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { QueryErrorBoundary } from "@/components/QueryErrorBoundary";
 import { SentryTestButton } from "@/components/SentryTestButton";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { OnboardingProvider } from "@/contexts/OnboardingContext";
 import Index from "./pages/Index";
 import Prompts from "./pages/Prompts";
 import PromptDetail from "./pages/PromptDetail";
@@ -43,34 +45,38 @@ const App = () => (
           <Sonner />
           <SentryTestButton />
           <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/prompts" element={<Prompts />} />
-              <Route path="/prompts/:id" element={<PromptDetail />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/models/compare" element={<ModelComparison />} />
-              <Route path="/models/batch" element={<BatchTesting />} />
-              <Route path="/templates" element={<Templates />} />
-              <Route path="/leaderboard" element={<Leaderboard />} />
-              <Route path="/scheduled-tests" element={<ScheduledTests />} />
-              <Route path="/teams" element={<Teams />} />
-              <Route path="/api-usage" element={<ApiUsage />} />
-              <Route path="/api-docs" element={<ApiDocs />} />
-              <Route path="/security" element={<SecurityDashboard />} />
-              <Route path="/security/audit-log" element={<SecurityAuditLog />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/api-keys" element={<ApiKeys />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/deployment-metrics" element={<DeploymentMetrics />} />
-              <Route path="/test-coverage" element={<TestCoverage />} />
-              <Route path="/share/:token" element={<SharedTestRun />} />
-              <Route path="/terms" element={<TermsOfService />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <CookieConsentBanner />
+            <AuthProvider>
+              <OnboardingProvider>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/prompts" element={<Prompts />} />
+                  <Route path="/prompts/:id" element={<PromptDetail />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/admin" element={<Admin />} />
+                  <Route path="/models/compare" element={<ModelComparison />} />
+                  <Route path="/models/batch" element={<BatchTesting />} />
+                  <Route path="/templates" element={<Templates />} />
+                  <Route path="/leaderboard" element={<Leaderboard />} />
+                  <Route path="/scheduled-tests" element={<ScheduledTests />} />
+                  <Route path="/teams" element={<Teams />} />
+                  <Route path="/api-usage" element={<ApiUsage />} />
+                  <Route path="/api-docs" element={<ApiDocs />} />
+                  <Route path="/security" element={<SecurityDashboard />} />
+                  <Route path="/security/audit-log" element={<SecurityAuditLog />} />
+                  <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/api-keys" element={<ApiKeys />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/deployment-metrics" element={<DeploymentMetrics />} />
+                  <Route path="/test-coverage" element={<TestCoverage />} />
+                  <Route path="/share/:token" element={<SharedTestRun />} />
+                  <Route path="/terms" element={<TermsOfService />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                <CookieConsentBanner />
+              </OnboardingProvider>
+            </AuthProvider>
           </BrowserRouter>
         </TooltipProvider>
       </QueryErrorBoundary>
