@@ -80,6 +80,7 @@ export const mockUserProfile: UserProfile = {
   avatar_url: 'https://example.com/avatar.jpg',
   bio: 'Test bio',
   environment_mode: 'sandbox',
+  onboarding_completed: false,
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
 };
