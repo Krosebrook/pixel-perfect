@@ -56,15 +56,6 @@ export function getUserFriendlyMessage(error: Error | string): string {
     return 'Unable to connect to the server. Please check your internet connection and try again.';
   }
 
-  // Authentication errors
-  if (
-    lowerMessage.includes('auth') ||
-    lowerMessage.includes('unauthorized') ||
-    lowerMessage.includes('403') ||
-    lowerMessage.includes('401')
-  ) {
-    return 'Authentication error. Please sign in again to continue.';
-  }
 
   // Rate limiting
   if (lowerMessage.includes('rate limit') || lowerMessage.includes('429')) {
@@ -107,8 +98,6 @@ export function shouldReportError(error: Error): boolean {
     'invalid input',
     'not found',
     '404',
-    'unauthorized',
-    '401',
   ];
 
   if (userErrors.some((term) => message.includes(term))) {
