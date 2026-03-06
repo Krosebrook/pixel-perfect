@@ -15,8 +15,8 @@ export function usePrompts(userId: string | undefined, filters?: PromptFilters) 
   return useQuery({
     queryKey: [QUERY_KEYS.PROMPTS, userId, filters],
     queryFn: async () => {
-      if (!userId) return [];
-      const result = await promptService.getPrompts(userId, filters);
+      // Pass empty string to service to fetch all public prompts
+      const result = await promptService.getPrompts(userId || '', filters);
       if (!result.success) throw new Error(result.error ?? 'Failed to fetch prompts');
       return result.data ?? [];
     },
