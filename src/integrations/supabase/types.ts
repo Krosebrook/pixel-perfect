@@ -1367,7 +1367,7 @@ export type Database = {
       get_api_usage: {
         Args: {
           _environment_mode: string
-          _time_range?: unknown
+          _time_range?: string
           _user_id: string
         }
         Returns: {
