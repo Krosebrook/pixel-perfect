@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { EmptyState } from '@/components/EmptyState';
 import { useDebouncedCallback } from '@/hooks/useDebounce';
+import { DEMO_PROMPTS } from '@/lib/demo-data';
 
 // ============================================================================
 // Types
@@ -274,10 +275,13 @@ function Prompts() {
   });
 
   // Use the service layer hook for prompts - internal app, no user filtering
-  const { data: prompts, isLoading, refetch } = usePrompts('', {
+  const { data: dbPrompts, isLoading, refetch } = usePrompts('__all__', {
     categoryId: selectedCategory || undefined,
     search: debouncedSearch || undefined,
   });
+
+  // Fall back to demo data when DB returns empty
+  const prompts = (dbPrompts && dbPrompts.length > 0) ? dbPrompts : DEMO_PROMPTS;
 
   const updatePrompt = useUpdatePrompt();
 
