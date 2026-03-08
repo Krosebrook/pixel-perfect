@@ -11,6 +11,7 @@ import { OnboardingProvider } from "@/contexts/OnboardingContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Prompts from "./pages/Prompts";
 import PromptDetail from "./pages/PromptDetail";
 import Profile from "./pages/Profile";
