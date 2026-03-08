@@ -11,6 +11,7 @@ import { OnboardingProvider } from "@/contexts/OnboardingContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Prompts from "./pages/Prompts";
 import PromptDetail from "./pages/PromptDetail";
 import Profile from "./pages/Profile";
@@ -52,6 +53,7 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/prompts" element={<Prompts />} />
                   <Route path="/prompts/:id" element={<PromptDetail />} />
                   <Route path="/profile" element={<Profile />} />
