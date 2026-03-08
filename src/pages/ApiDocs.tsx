@@ -266,7 +266,7 @@ compareModels();`}
             <CardContent>
               <pre className="bg-muted p-4 rounded-md text-xs overflow-x-auto">
 {`curl -X POST \\
-  https://pocnysyzkbluasjwgcqy.supabase.co/functions/v1/run-comparison \\
+  <BASE_URL>/functions/v1/run-comparison \\
   -H 'Authorization: Bearer YOUR_JWT_TOKEN' \\
   -H 'Content-Type: application/json' \\
   -d '{
