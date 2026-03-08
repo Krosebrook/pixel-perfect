@@ -82,12 +82,24 @@ export default function ResetPassword() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
         <Card className="w-full max-w-md">
-          <CardHeader>
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+              <AlertCircle className="h-6 w-6 text-destructive" />
+            </div>
             <CardTitle className="text-2xl font-bold">Invalid or Expired Link</CardTitle>
             <CardDescription>
-              This password reset link is invalid or has expired. Redirecting to login...
+              This password reset link is invalid or has expired. You will be redirected to the sign-in page shortly.
             </CardDescription>
           </CardHeader>
+          <CardContent className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+              Redirecting in a few seconds…
+            </div>
+            <Button variant="outline" onClick={() => navigate('/auth', { replace: true })}>
+              Go to Sign In now
+            </Button>
+          </CardContent>
         </Card>
       </div>
     );
