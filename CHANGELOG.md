@@ -31,3 +31,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - Resolved missing `/auth` route that caused 404 when navigating to sign-up/sign-in.
+- Fixed reCAPTCHA "Invalid key type" error on sign-up form by improving key validation, graceful error handling, and preventing script loading when no valid key is configured.
