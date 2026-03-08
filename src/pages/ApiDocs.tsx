@@ -78,7 +78,7 @@ export default function ApiDocs() {
             </CardHeader>
             <CardContent>
               <code className="block p-3 bg-muted rounded-md text-sm">
-                {`${import.meta.env.VITE_SUPABASE_URL}/functions/v1`}
+                {'https://<YOUR_PROJECT_URL>/functions/v1'}
               </code>
             </CardContent>
           </Card>
