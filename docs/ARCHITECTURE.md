@@ -105,6 +105,7 @@ src/
 ├── lib/                 # Utility functions
 │   ├── formatters.ts    # Formatting utilities
 │   ├── constants.ts     # App constants
+│   ├── demo-data.ts     # Fallback demo prompts
 │   ├── utils.ts         # General utilities
 │   ├── error-utils.ts   # Error handling
 │   └── __tests__/       # Utility tests
