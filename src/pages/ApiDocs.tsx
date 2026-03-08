@@ -78,7 +78,7 @@ export default function ApiDocs() {
             </CardHeader>
             <CardContent>
               <code className="block p-3 bg-muted rounded-md text-sm">
-                https://pocnysyzkbluasjwgcqy.supabase.co/functions/v1
+                {`${import.meta.env.VITE_SUPABASE_URL}/functions/v1`}
               </code>
             </CardContent>
           </Card>
