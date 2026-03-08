@@ -1,8 +1,10 @@
 /**
  * @fileoverview reCAPTCHA v2 checkbox component.
+ * Only loads the reCAPTCHA script and renders the widget when a valid site key
+ * is configured via the VITE_RECAPTCHA_SITE_KEY environment variable.
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 
 // reCAPTCHA site key from environment (publishable key - safe for frontend)
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
@@ -31,35 +33,52 @@ declare global {
   }
 }
 
+/**
+ * Returns true only when VITE_RECAPTCHA_SITE_KEY is a non-empty,
+ * non-placeholder string that looks like a real key.
+ */
+function isKeyConfigured(): boolean {
+  if (!RECAPTCHA_SITE_KEY) return false;
+  const trimmed = RECAPTCHA_SITE_KEY.trim();
+  if (trimmed.length === 0) return false;
+  // Reject obvious placeholder values
+  if (/^(your[_-]?|example|test|placeholder|TODO)/i.test(trimmed)) return false;
+  return true;
+}
+
 export function ReCaptcha({ onVerify, onExpire, onError }: ReCaptchaProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<number | null>(null);
   const isRenderedRef = useRef(false);
+  const [renderError, setRenderError] = useState(false);
+
+  const handleError = useCallback(() => {
+    setRenderError(true);
+    onError?.();
+  }, [onError]);
 
   const renderCaptcha = useCallback(() => {
     if (!containerRef.current || !window.grecaptcha || isRenderedRef.current) return;
-    
-    if (!RECAPTCHA_SITE_KEY) {
-      console.warn('reCAPTCHA site key not configured');
-      return;
-    }
 
     try {
       widgetIdRef.current = window.grecaptcha.render(containerRef.current, {
         sitekey: RECAPTCHA_SITE_KEY,
         callback: onVerify,
         'expired-callback': onExpire,
-        'error-callback': onError,
+        'error-callback': handleError,
         theme: 'light',
         size: 'normal',
       });
       isRenderedRef.current = true;
     } catch (error) {
       console.error('reCAPTCHA render error:', error);
+      setRenderError(true);
     }
-  }, [onVerify, onExpire, onError]);
+  }, [onVerify, onExpire, handleError]);
 
   useEffect(() => {
+    if (!isKeyConfigured()) return;
+
     // Check if script already exists
     if (document.querySelector('script[src*="recaptcha"]')) {
       if (window.grecaptcha) {
@@ -85,7 +104,8 @@ export function ReCaptcha({ onVerify, onExpire, onError }: ReCaptchaProps) {
     };
   }, [renderCaptcha]);
 
-  if (!RECAPTCHA_SITE_KEY) {
+  // Don't render anything if the key isn't configured or if there was a render error
+  if (!isKeyConfigured() || renderError) {
     return null;
   }
 
@@ -94,6 +114,10 @@ export function ReCaptcha({ onVerify, onExpire, onError }: ReCaptchaProps) {
 
 export function resetReCaptcha() {
   if (window.grecaptcha) {
-    window.grecaptcha.reset();
+    try {
+      window.grecaptcha.reset();
+    } catch {
+      // Silently ignore if widget wasn't rendered
+    }
   }
 }
