@@ -86,6 +86,7 @@ src/
 │
 ├── hooks/               # Custom React hooks
 │   ├── useProfile.ts
+│   ├── useLocalProfile.ts  # localStorage-based profile
 │   ├── useBudget.ts
 │   ├── useRateLimits.ts
 │   ├── useAnalytics.ts
