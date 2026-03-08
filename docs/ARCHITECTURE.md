@@ -93,7 +93,8 @@ src/
 │   └── __tests__/       # Hook tests
 │
 ├── contexts/            # React context providers
-│   └── AuthContext.tsx
+│   ├── AuthContext.tsx
+│   └── OnboardingContext.tsx
 │
 ├── types/               # TypeScript type definitions
 │   ├── api.ts
