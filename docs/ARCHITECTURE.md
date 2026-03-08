@@ -216,6 +216,11 @@ export function RateLimitMonitor() {
 - Theme preferences
 - Temporary user input
 
+**Local State** (localStorage):
+- User profile preferences (`useLocalProfile`)
+- Onboarding completion flag
+- Cookie consent preferences
+
 ### React Query Architecture
 
 ```typescript

@@ -286,7 +286,7 @@ compareModels();`}
 {`import requests
 
 token = 'your-jwt-token'
-url = 'https://pocnysyzkbluasjwgcqy.supabase.co/functions/v1/run-comparison'
+url = '<BASE_URL>/functions/v1/run-comparison'
 
 headers = {
     'Authorization': f'Bearer {token}',
