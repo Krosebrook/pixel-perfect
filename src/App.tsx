@@ -8,7 +8,9 @@ import { QueryErrorBoundary } from "@/components/QueryErrorBoundary";
 import { SentryTestButton } from "@/components/SentryTestButton";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { OnboardingProvider } from "@/contexts/OnboardingContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import Index from "./pages/Index";
+import Auth from "./pages/Auth";
 import Prompts from "./pages/Prompts";
 import PromptDetail from "./pages/PromptDetail";
 import Profile from "./pages/Profile";
@@ -49,10 +51,11 @@ const App = () => (
               <OnboardingProvider>
                 <Routes>
                   <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<Auth />} />
                   <Route path="/prompts" element={<Prompts />} />
                   <Route path="/prompts/:id" element={<PromptDetail />} />
                   <Route path="/profile" element={<Profile />} />
-                  <Route path="/admin" element={<Admin />} />
+                  <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
                   <Route path="/models/compare" element={<ModelComparison />} />
                   <Route path="/models/batch" element={<BatchTesting />} />
                   <Route path="/templates" element={<Templates />} />
@@ -61,10 +64,10 @@ const App = () => (
                   <Route path="/teams" element={<Teams />} />
                   <Route path="/api-usage" element={<ApiUsage />} />
                   <Route path="/api-docs" element={<ApiDocs />} />
-                  <Route path="/security" element={<SecurityDashboard />} />
-                  <Route path="/security/audit-log" element={<SecurityAuditLog />} />
+                  <Route path="/security" element={<ProtectedRoute><SecurityDashboard /></ProtectedRoute>} />
+                  <Route path="/security/audit-log" element={<ProtectedRoute><SecurityAuditLog /></ProtectedRoute>} />
                   <Route path="/analytics" element={<Analytics />} />
-                  <Route path="/api-keys" element={<ApiKeys />} />
+                  <Route path="/api-keys" element={<ProtectedRoute><ApiKeys /></ProtectedRoute>} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/deployment-metrics" element={<DeploymentMetrics />} />
                   <Route path="/test-coverage" element={<TestCoverage />} />
