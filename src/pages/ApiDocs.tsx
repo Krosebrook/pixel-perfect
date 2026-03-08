@@ -78,7 +78,7 @@ export default function ApiDocs() {
             </CardHeader>
             <CardContent>
               <code className="block p-3 bg-muted rounded-md text-sm">
-                https://pocnysyzkbluasjwgcqy.supabase.co/functions/v1
+                {`${import.meta.env.VITE_SUPABASE_URL}/functions/v1`}
               </code>
             </CardContent>
           </Card>
@@ -236,7 +236,7 @@ fetch('https://[url]/functions/v1/run-comparison', {
 
 async function compareModels() {
   const response = await fetch(
-    'https://pocnysyzkbluasjwgcqy.supabase.co/functions/v1/run-comparison',
+    '<BASE_URL>/functions/v1/run-comparison',
     {
       method: 'POST',
       headers: {
@@ -266,7 +266,7 @@ compareModels();`}
             <CardContent>
               <pre className="bg-muted p-4 rounded-md text-xs overflow-x-auto">
 {`curl -X POST \\
-  https://pocnysyzkbluasjwgcqy.supabase.co/functions/v1/run-comparison \\
+  <BASE_URL>/functions/v1/run-comparison \\
   -H 'Authorization: Bearer YOUR_JWT_TOKEN' \\
   -H 'Content-Type: application/json' \\
   -d '{
@@ -286,7 +286,7 @@ compareModels();`}
 {`import requests
 
 token = 'your-jwt-token'
-url = 'https://pocnysyzkbluasjwgcqy.supabase.co/functions/v1/run-comparison'
+url = '<BASE_URL>/functions/v1/run-comparison'
 
 headers = {
     'Authorization': f'Bearer {token}',
