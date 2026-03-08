@@ -415,41 +415,58 @@ CREATE POLICY "Admins have full access"
 
 ### Route Structure
 
+All routes are currently public (no authentication required). The `AuthProvider` wraps
+the tree for optional auth features but does not gate access.
+
 ```typescript
 // src/App.tsx
 <Routes>
-  <Route path="/auth" element={<Auth />} />
-  
-  <Route element={<ProtectedRoute />}>
-    <Route path="/" element={<Index />} />
-    <Route path="/prompts" element={<Prompts />} />
-    <Route path="/analytics" element={<Analytics />} />
-    <Route path="/settings" element={<Settings />} />
-    
-    {/* Admin routes */}
-    <Route element={<AdminRoute />}>
-      <Route path="/admin" element={<Admin />} />
-      <Route path="/security" element={<SecurityDashboard />} />
-    </Route>
-  </Route>
-  
+  <Route path="/" element={<Index />} />
+  <Route path="/prompts" element={<Prompts />} />
+  <Route path="/prompts/:id" element={<PromptDetail />} />
+  <Route path="/profile" element={<Profile />} />
+  <Route path="/admin" element={<Admin />} />
+  <Route path="/models/compare" element={<ModelComparison />} />
+  <Route path="/models/batch" element={<BatchTesting />} />
+  <Route path="/templates" element={<Templates />} />
+  <Route path="/leaderboard" element={<Leaderboard />} />
+  <Route path="/scheduled-tests" element={<ScheduledTests />} />
+  <Route path="/teams" element={<Teams />} />
+  <Route path="/api-usage" element={<ApiUsage />} />
+  <Route path="/api-docs" element={<ApiDocs />} />
+  <Route path="/security" element={<SecurityDashboard />} />
+  <Route path="/security/audit-log" element={<SecurityAuditLog />} />
+  <Route path="/analytics" element={<Analytics />} />
+  <Route path="/api-keys" element={<ApiKeys />} />
+  <Route path="/settings" element={<Settings />} />
+  <Route path="/deployment-metrics" element={<DeploymentMetrics />} />
+  <Route path="/test-coverage" element={<TestCoverage />} />
+  <Route path="/share/:token" element={<SharedTestRun />} />
+  <Route path="/terms" element={<TermsOfService />} />
+  <Route path="/privacy" element={<PrivacyPolicy />} />
   <Route path="*" element={<NotFound />} />
 </Routes>
 ```
 
-### Protected Routes
+> **Note:** `Auth.tsx` and `ProtectedRoute.tsx` exist in the codebase but are
+> **not** currently wired into the router. To enable authentication gating,
+> add a `/auth` route and wrap protected routes with `<ProtectedRoute>`.
+
+### Local Profile System
+
+When authentication is not active, user preferences are stored via `useLocalProfile`:
 
 ```typescript
-// src/components/ProtectedRoute.tsx
-export function ProtectedRoute() {
-  const { user, loading } = useAuth();
-  
-  if (loading) return <LoadingScreen />;
-  if (!user) return <Navigate to="/auth" />;
-  
-  return <Outlet />;
-}
+// src/hooks/useLocalProfile.ts
+const { profile, updateProfile } = useLocalProfile();
+// Persists display_name, bio, environment_mode to localStorage
 ```
+
+### Demo Data Fallback
+
+The Prompts page loads from the database first. If the query returns no rows
+(e.g., no authenticated user), it falls back to hardcoded demo prompts defined
+in `src/lib/demo-data.ts`.
 
 ## Styling System
 
