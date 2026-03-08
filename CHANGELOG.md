@@ -17,8 +17,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Session timeout provider with idle-detection and warning dialog.
 - API documentation page (`/api-docs`) with endpoint reference, auth guide, and code examples.
 - `/reset-password` route for password recovery after clicking the email reset link.
+- Email verification banner (`EmailVerificationBanner`) shown to authenticated users whose email is not yet confirmed, with resend and dismiss functionality.
 
 ### Changed
+- `/reset-password` page now displays a clear "Invalid or Expired Link" error card with an auto-redirect countdown and manual "Go to Sign In" button when accessed without a valid token.
 - API Docs Base URL now uses `<YOUR_PROJECT_URL>` placeholder instead of exposing the live project URL.
 - Architecture documentation (`docs/ARCHITECTURE.md`) updated to reflect current auth-free routing and local state management.
 
