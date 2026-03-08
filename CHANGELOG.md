@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Cookie consent banner with granular preference management.
 - Session timeout provider with idle-detection and warning dialog.
 - API documentation page (`/api-docs`) with endpoint reference, auth guide, and code examples.
+- `/reset-password` route for password recovery after clicking the email reset link.
 
 ### Changed
 - API Docs Base URL now uses `<YOUR_PROJECT_URL>` placeholder instead of exposing the live project URL.
