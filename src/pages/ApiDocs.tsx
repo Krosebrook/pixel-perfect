@@ -236,7 +236,7 @@ fetch('https://[url]/functions/v1/run-comparison', {
 
 async function compareModels() {
   const response = await fetch(
-    'https://pocnysyzkbluasjwgcqy.supabase.co/functions/v1/run-comparison',
+    '<BASE_URL>/functions/v1/run-comparison',
     {
       method: 'POST',
       headers: {
